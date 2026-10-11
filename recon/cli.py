@@ -102,6 +102,12 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Giriş gerektiren yol (tekrarlanabilir); authz bunları test eder")
     p.add_argument("--spec", default=None,
                    help="OpenAPI/Swagger şeması URL/yolu (openapi modülü için)")
+    p.add_argument("--github-issues", default=None, metavar="OWNER/REPO",
+                   help="Yeni bulgular için bu repoda issue aç (GITHUB_TOKEN gerekir)")
+    p.add_argument("--issue-min-severity", default="high",
+                   help="Issue açılacak asgari önem (varsayılan: high)")
+    p.add_argument("--close-resolved", action="store_true",
+                   help="Çözülen bulguların issue'larını kapat")
     p.add_argument("-v", "--version", action="version",
                    version=f"recon-orchestrator {__version__}")
     return p
@@ -212,6 +218,24 @@ def _scan_one(target: str, settings: dict) -> int:
     run_dir = _write_reports(result, meta, settings["output_dir"],
                              settings["lang"], diff, settings["formats"])
 
+    # Optional: open GitHub issues for new findings
+    if settings.get("github_issues") and diff is not None:
+        token = os.environ.get("GITHUB_TOKEN")
+        if not token:
+            print("[!] GITHUB_TOKEN yok; issue oluşturma atlandı.", file=sys.stderr)
+        else:
+            from .i18n import localize
+            from .integrations.github import post_findings
+            try:
+                gh = post_findings(
+                    settings["github_issues"], token, diff, localize,
+                    settings["lang"], settings["issue_min_severity"],
+                    settings["close_resolved"])
+                print(f"[+] GitHub: {len(gh['created'])} issue açıldı, "
+                      f"{len(gh['closed'])} kapatıldı.", file=sys.stderr)
+            except Exception as e:  # noqa: BLE001
+                print(f"[!] GitHub issue hatası: {e}", file=sys.stderr)
+
     counts = result.counts()
     summary = ", ".join(f"{counts[s]} {s}" for s in counts if counts[s]) or "bulgu yok"
     print(f"\n[+] Bitti. Rapor: {run_dir}", file=sys.stderr)
@@ -291,6 +315,9 @@ def main(argv: list[str] | None = None) -> int:
                         if args.auth_header_env else args.auth_header),
         "auth_pages": args.auth_page,
         "spec": args.spec,
+        "github_issues": args.github_issues,
+        "issue_min_severity": args.issue_min_severity,
+        "close_resolved": args.close_resolved,
         "formats": ([f.strip() for f in args.format.split(",") if f.strip()]
                     if args.format else None),
         "options": cfg.get("options", {}),
