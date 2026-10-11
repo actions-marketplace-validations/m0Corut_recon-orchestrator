@@ -54,6 +54,9 @@ REGISTRY: dict[str, ModuleSpec] = {
     "authz": ModuleSpec(
         "authz", "recon.modules.authz", False, True,
         "Giriş sonrası (salt-okunur) erişim kontrolü — kimlik bilgisi gerekir"),
+    "openapi": ModuleSpec(
+        "openapi", "recon.modules.openapi", False, True,
+        "OpenAPI/Swagger şema-güdümlü endpoint kapsamı (salt-okunur)"),
 }
 
 # Default execution order: cheap pure-Python modules first, Docker ones after.

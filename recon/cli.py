@@ -100,6 +100,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Oturum başlığını bu ortam değişkeninden oku (daha güvenli)")
     p.add_argument("--auth-page", action="append", default=None,
                    help="Giriş gerektiren yol (tekrarlanabilir); authz bunları test eder")
+    p.add_argument("--spec", default=None,
+                   help="OpenAPI/Swagger şeması URL/yolu (openapi modülü için)")
     p.add_argument("-v", "--version", action="version",
                    version=f"recon-orchestrator {__version__}")
     return p
@@ -165,6 +167,8 @@ def _scan_one(target: str, settings: dict) -> int:
                       runner=get_runner(settings["runner"]),
                       auth_header=settings["auth_header"],
                       auth_pages=settings["auth_pages"])
+    if settings.get("spec"):
+        ctx.extra["spec"] = settings["spec"]
     opts = settings["options"]
     for field in ("top_ports", "nuclei_tags", "nuclei_severity", "content_threads",
                   "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout"):
@@ -286,6 +290,7 @@ def main(argv: list[str] | None = None) -> int:
         "auth_header": (os.environ.get(args.auth_header_env)
                         if args.auth_header_env else args.auth_header),
         "auth_pages": args.auth_page,
+        "spec": args.spec,
         "formats": ([f.strip() for f in args.format.split(",") if f.strip()]
                     if args.format else None),
         "options": cfg.get("options", {}),
