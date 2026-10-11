@@ -94,6 +94,12 @@ def build_parser() -> argparse.ArgumentParser:
                         "(varsayılan: hepsi)")
     p.add_argument("--runner", default="auto", choices=["auto", "docker", "native"],
                    help="Dış araçlar nasıl çalışsın (varsayılan: auto)")
+    p.add_argument("--auth-header", default=None,
+                   help="authz için oturum başlığı (örn. 'Cookie: session=...')")
+    p.add_argument("--auth-header-env", default=None,
+                   help="Oturum başlığını bu ortam değişkeninden oku (daha güvenli)")
+    p.add_argument("--auth-page", action="append", default=None,
+                   help="Giriş gerektiren yol (tekrarlanabilir); authz bunları test eder")
     p.add_argument("-v", "--version", action="version",
                    version=f"recon-orchestrator {__version__}")
     return p
@@ -156,7 +162,9 @@ def _scan_one(target: str, settings: dict) -> int:
                              allow_private=settings["allow_private"])
     ctx = ScanContext(rate=settings["rate"], http_timeout=15, scope=scope,
                       limiter=RateLimiter(settings["rate"]),
-                      runner=get_runner(settings["runner"]))
+                      runner=get_runner(settings["runner"]),
+                      auth_header=settings["auth_header"],
+                      auth_pages=settings["auth_pages"])
     opts = settings["options"]
     for field in ("top_ports", "nuclei_tags", "nuclei_severity", "content_threads",
                   "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout"):
@@ -275,6 +283,9 @@ def main(argv: list[str] | None = None) -> int:
         "jobs": args.jobs,
         "serial": args.serial,
         "runner": args.runner,
+        "auth_header": (os.environ.get(args.auth_header_env)
+                        if args.auth_header_env else args.auth_header),
+        "auth_pages": args.auth_page,
         "formats": ([f.strip() for f in args.format.split(",") if f.strip()]
                     if args.format else None),
         "options": cfg.get("options", {}),

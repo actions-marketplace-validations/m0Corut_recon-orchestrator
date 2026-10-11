@@ -51,7 +51,11 @@ REGISTRY: dict[str, ModuleSpec] = {
     "dns": ModuleSpec(
         "dns", "recon.modules.dns", False, False,
         "DNS & e-posta güvenliği: SPF/DMARC/DKIM/CAA/MX (dnspython gerekir)"),
+    "authz": ModuleSpec(
+        "authz", "recon.modules.authz", False, True,
+        "Giriş sonrası (salt-okunur) erişim kontrolü — kimlik bilgisi gerekir"),
 }
 
 # Default execution order: cheap pure-Python modules first, Docker ones after.
+# 'authz' is opt-in (needs credentials), so it is not in the default set.
 DEFAULT_ORDER = ["headers", "cors", "content", "dns", "ports", "tls", "web"]

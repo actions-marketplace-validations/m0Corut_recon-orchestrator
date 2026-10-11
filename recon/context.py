@@ -24,6 +24,9 @@ class ScanContext:
     nuclei_tags: str | None = None
     content_threads: int = 10
     wordlist_entries: list[str] | None = None
+    # authenticated (authz) module inputs
+    auth_header: str | None = None
+    auth_pages: list[str] | None = None
     # scope allowlist (set by the engine/CLI); None means unrestricted
     scope: Any = None
     # shared rate limiter (set by the engine); None means no limiting
