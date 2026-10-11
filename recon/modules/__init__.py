@@ -46,7 +46,10 @@ REGISTRY: dict[str, ModuleSpec] = {
     "web": ModuleSpec(
         "web", "recon.modules.web", True, True,
         "Topluluk şablonlarıyla açık/teknoloji tespiti (nuclei)"),
+    "dns": ModuleSpec(
+        "dns", "recon.modules.dns", False, False,
+        "DNS & e-posta güvenliği: SPF/DMARC/DKIM/CAA/MX (dnspython gerekir)"),
 }
 
 # Default execution order: cheap pure-Python modules first, Docker ones after.
-DEFAULT_ORDER = ["headers", "cors", "content", "ports", "tls", "web"]
+DEFAULT_ORDER = ["headers", "cors", "content", "dns", "ports", "tls", "web"]

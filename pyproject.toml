@@ -17,11 +17,15 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+dns = [
+    "dnspython>=2.4",
+]
 dev = [
     "pytest>=7",
     "ruff>=0.6",
     "mypy>=1.8",
     "types-requests",
+    "dnspython>=2.4",
 ]
 
 [project.scripts]
