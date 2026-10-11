@@ -1,27 +1,22 @@
-"""Command-line entry point for recon-orchestrator."""
+"""Command-line entry point for recon-orchestrator.
+
+Thin wrapper: parse args, build a ScanContext, delegate to engine.run_scan,
+then write the reports. All orchestration lives in recon/engine.py.
+"""
 from __future__ import annotations
 
 import argparse
-import importlib
 import os
 import sys
 from datetime import datetime, timezone
 
 from . import __version__
+from .context import ScanContext
 from .dockerutil import docker_available
-from .findings import ScanResult
+from .engine import resolve_modules, run_scan
+from .findings import SEVERITY_RANK
+from .modules import REGISTRY
 from .report import to_json, to_markdown, to_sarif
-
-# module name -> import path
-MODULES = {
-    "headers": "recon.modules.headers",
-    "cors": "recon.modules.cors",
-    "ports": "recon.modules.ports",
-    "tls": "recon.modules.tls",
-    "web": "recon.modules.web",
-    "content": "recon.modules.content",
-}
-DEFAULT_ORDER = ["headers", "cors", "content", "ports", "tls", "web"]
 
 BANNER_WARNING = (
     "UYARI: Bu araç hedefe gerçek istekler gönderir. Yalnızca SAHİBİ OLDUĞUNUZ "
@@ -44,7 +39,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("target", help="Hedef URL veya alan adı (örn. https://ornek.com)")
     p.add_argument("-m", "--modules", default="all",
-                   help=f"Virgülle modül listesi veya 'all'. Seçenekler: {', '.join(MODULES)}")
+                   help=f"Virgülle modül listesi veya 'all'. Seçenekler: {', '.join(REGISTRY)}")
     p.add_argument("-o", "--output-dir", default="recon_runs",
                    help="Rapor çıktı dizini (varsayılan: recon_runs)")
     p.add_argument("--rate", type=int, default=20,
@@ -65,6 +60,19 @@ def _load_wordlist(path: str) -> list[str]:
         return [ln.strip() for ln in fh if ln.strip() and not ln.startswith("#")]
 
 
+def _write_reports(result, meta, output_dir) -> str:
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    host = result.target.split("://", 1)[-1].replace("/", "_").strip("_")
+    run_dir = os.path.join(output_dir, f"{host}_{stamp}")
+    os.makedirs(run_dir, exist_ok=True)
+    for fname, renderer in (("report.md", to_markdown),
+                            ("report.json", to_json),
+                            ("findings.sarif", to_sarif)):
+        with open(os.path.join(run_dir, fname), "w", encoding="utf-8") as fh:
+            fh.write(renderer(result, meta))
+    return run_dir
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
@@ -76,58 +84,39 @@ def main(argv: list[str] | None = None) -> int:
 
     target = _normalize_target(args.target)
 
-    if args.modules == "all":
-        selected = DEFAULT_ORDER
-    else:
-        selected = [m.strip() for m in args.modules.split(",") if m.strip()]
-    unknown = [m for m in selected if m not in MODULES]
-    if unknown:
-        print(f"HATA: bilinmeyen modül(ler): {', '.join(unknown)}", file=sys.stderr)
+    try:
+        selected = resolve_modules(args.modules)
+    except ValueError as e:
+        print(f"HATA: {e}", file=sys.stderr)
         return 1
 
-    ctx = {"rate": args.rate}
+    ctx = ScanContext(rate=args.rate, http_timeout=15)
     if args.wordlist:
-        ctx["wordlist_entries"] = _load_wordlist(args.wordlist)
+        ctx.wordlist_entries = _load_wordlist(args.wordlist)
 
-    docker_ok = docker_available()
-    result = ScanResult(target=target)
-    ran = []
+    ran: list[str] = []
 
-    for name in selected:
-        mod = importlib.import_module(MODULES[name])
-        if getattr(mod, "NEEDS_DOCKER", False) and not docker_ok:
-            result.errors.append(f"{name}: Docker çalışmıyor, atlandı.")
-            print(f"[~] {name}: Docker yok, atlandı.", file=sys.stderr)
-            continue
-        print(f"[*] {name} çalışıyor...", file=sys.stderr)
-        try:
-            result.add(*mod.run(target, ctx))
-            ran.append(name)
-        except Exception as e:  # noqa: BLE001 - modül hatası taramayı durdurmasın
-            result.errors.append(f"{name}: {e}")
-            print(f"[!] {name} hata verdi: {e}", file=sys.stderr)
+    def on_event(kind: str, msg: str) -> None:
+        if kind == "run":
+            print(f"[*] {msg} çalışıyor...", file=sys.stderr)
+            ran.append(msg)
+        elif kind == "skip":
+            print(f"[~] {msg}: Docker yok, atlandı.", file=sys.stderr)
+        elif kind == "error":
+            print(f"[!] {msg}", file=sys.stderr)
 
-    # Write reports
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    host = target.split("://", 1)[-1].replace("/", "_").strip("_")
-    run_dir = os.path.join(args.output_dir, f"{host}_{stamp}")
-    os.makedirs(run_dir, exist_ok=True)
+    result = run_scan(target, selected, ctx,
+                      docker_ok=docker_available(), on_event=on_event)
+
     meta = {"modules": ran, "rate": args.rate, "version": __version__}
-
-    with open(os.path.join(run_dir, "report.md"), "w", encoding="utf-8") as fh:
-        fh.write(to_markdown(result, meta))
-    with open(os.path.join(run_dir, "report.json"), "w", encoding="utf-8") as fh:
-        fh.write(to_json(result, meta))
-    with open(os.path.join(run_dir, "findings.sarif"), "w", encoding="utf-8") as fh:
-        fh.write(to_sarif(result, meta))
+    run_dir = _write_reports(result, meta, args.output_dir)
 
     counts = result.counts()
+    summary = ", ".join(f"{counts[s]} {s}" for s in counts if counts[s]) or "bulgu yok"
     print(f"\n[+] Bitti. Rapor: {run_dir}", file=sys.stderr)
-    print("    " + ", ".join(f"{counts[s]} {s}" for s in counts if counts[s])
-          or "    bulgu yok", file=sys.stderr)
+    print(f"    {summary}", file=sys.stderr)
 
     if args.fail_on:
-        from .findings import SEVERITY_RANK
         threshold = SEVERITY_RANK.get(args.fail_on.lower())
         if threshold is not None and result.max_rank() >= threshold:
             return 2

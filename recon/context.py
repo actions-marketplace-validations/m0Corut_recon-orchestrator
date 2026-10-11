@@ -1,0 +1,35 @@
+"""Typed scan configuration passed from the CLI/engine down to modules.
+
+Modules still read values via ``ctx.get("key", default)`` so the dataclass is
+backward-compatible with the earlier plain-dict context: known settings are
+typed fields, anything else lives in ``extra``.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass
+class ScanContext:
+    # shared
+    rate: int = 20                      # aggregate req/s ceiling for active tools
+    http_timeout: int = 15
+    # module-specific knobs
+    top_ports: int = 100
+    nmap_timeout: int = 300
+    tls_timeout: int = 400
+    nuclei_timeout: int = 1200
+    nuclei_severity: str = "low,medium,high,critical"
+    nuclei_tags: str | None = None
+    content_threads: int = 10
+    wordlist_entries: list[str] | None = None
+    # escape hatch for options not (yet) promoted to fields
+    extra: dict[str, Any] = field(default_factory=dict)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        if key == "extra":
+            return default
+        if hasattr(self, key):
+            return getattr(self, key)
+        return self.extra.get(key, default)
