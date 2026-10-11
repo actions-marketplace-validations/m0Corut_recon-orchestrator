@@ -1,0 +1,19 @@
+# Scan outputs — NEVER commit real findings about live systems
+recon_runs/
+*.sarif
+report.md
+report.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
