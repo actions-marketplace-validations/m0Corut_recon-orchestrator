@@ -1,9 +1,7 @@
 name: recon-scan
 
-# Örnek: her push'ta Docker'sız hızlı modülleri çalıştırır ve SARIF'i
-# GitHub code scanning'e yükler. TARGET'ı kendi izinli sisteminle değiştir.
-# Docker gerektiren modüller (ports/tls/web) için runner'da Docker gerekir;
-# ubuntu-latest'te Docker vardır, istersen -m all yapabilirsin.
+# Örnek: haftalık zamanlı + elle tetiklenebilir güvenlik taraması.
+# TARGET'ı kendi izinli sisteminle değiştir. Bu workflow, reusable action'ı kullanır.
 
 on:
   workflow_dispatch:
@@ -11,9 +9,11 @@ on:
       target:
         description: "Taranacak hedef (yetkili olmalısın)"
         required: true
+  schedule:
+    - cron: "0 6 * * 1"   # her Pazartesi 06:00 UTC
 
 permissions:
-  security-events: write   # SARIF upload için
+  security-events: write   # SARIF upload
   contents: read
 
 jobs:
@@ -22,23 +22,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Run recon-orchestrator
+        uses: m0Corut/recon-orchestrator@main
         with:
-          python-version: "3.12"
-
-      - run: pip install -r requirements.txt
-
-      - name: Run recon
-        run: |
-          python -m recon "${{ github.event.inputs.target }}" \
-            --authorized -m headers,cors,content -o out
-
-      - name: Locate SARIF
-        id: sarif
-        run: echo "path=$(find out -name findings.sarif | head -1)" >> "$GITHUB_OUTPUT"
-
-      - name: Upload SARIF
-        if: steps.sarif.outputs.path != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: ${{ steps.sarif.outputs.path }}
+          target: ${{ github.event.inputs.target || 'https://example.com' }}
+          modules: "headers,cors,content,dns"
+          fail-on-new: "high"
+          lang: "en"

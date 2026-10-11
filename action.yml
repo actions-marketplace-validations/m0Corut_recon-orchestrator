@@ -1,0 +1,64 @@
+name: "recon-orchestrator"
+description: "Yetkili güvenlik taraması çalıştırır ve SARIF'i code scanning'e yükler."
+branding:
+  icon: "shield"
+  color: "blue"
+
+inputs:
+  target:
+    description: "Taranacak hedef (yalnız yetkili olduğunuz sistem)."
+    required: true
+  modules:
+    description: "Modüller ('all' ya da virgülle liste)."
+    required: false
+    default: "all"
+  fail-on-new:
+    description: "Bu önem seviyesi+ YENİ bulguda build'i patlat (boş = patlatma)."
+    required: false
+    default: ""
+  lang:
+    description: "Rapor dili (en|tr)."
+    required: false
+    default: "en"
+  extra-args:
+    description: "recon'a eklenecek ham argümanlar (örn. --scope ..., --rate 10)."
+    required: false
+    default: ""
+  upload-sarif:
+    description: "SARIF'i GitHub code scanning'e yükle (true/false)."
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install recon-orchestrator
+      shell: bash
+      run: pip install "$GITHUB_ACTION_PATH"
+
+    - name: Run recon
+      shell: bash
+      run: |
+        ARGS=""
+        if [ -n "${{ inputs.fail-on-new }}" ]; then
+          ARGS="$ARGS --fail-on-new ${{ inputs.fail-on-new }}"
+        fi
+        recon "${{ inputs.target }}" --authorized \
+          -m "${{ inputs.modules }}" --lang "${{ inputs.lang }}" \
+          -o recon_out $ARGS ${{ inputs.extra-args }}
+
+    - name: Locate SARIF
+      id: sarif
+      if: always()
+      shell: bash
+      run: echo "path=$(find recon_out -name findings.sarif | head -1)" >> "$GITHUB_OUTPUT"
+
+    - name: Upload SARIF
+      if: always() && inputs.upload-sarif == 'true' && steps.sarif.outputs.path != ''
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ steps.sarif.outputs.path }}

@@ -132,8 +132,21 @@ Yeni modül eklemek: `modules/` içine `NAME`, `NEEDS_DOCKER` ve
 
 ## CI (GitHub Actions)
 
-`.github/workflows/scan.yml` örneği her push'ta Docker'sız modülleri çalıştırıp
-SARIF'i code scanning'e yükler. Hedefi kendi izinli sisteminle değiştir.
+Yeniden kullanılabilir **composite action** ile tek adımda tarama + SARIF upload:
+
+```yaml
+- uses: m0Corut/recon-orchestrator@main
+  with:
+    target: https://staging.ornek.com
+    modules: "headers,cors,content,dns"
+    fail-on-new: "high"      # sadece yeni high+ bulguda build patlar
+    lang: "en"
+    # extra-args: "--scope api.ornek.com --rate 10"
+```
+
+`.github/workflows/scan.yml` haftalık zamanlı + elle tetiklenebilir örnek bir
+workflow'dur (bu action'ı kullanır, SARIF'i code scanning'e yükler). Hedefi kendi
+izinli sisteminle değiştir.
 
 ## Geliştirme
 
