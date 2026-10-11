@@ -23,6 +23,13 @@ bayrağını zorunlu kılar.
   imajları ilk çalıştırmada otomatik çekilir). Docker yoksa bu modüller atlanır,
   Python tabanlı modüller (`headers`, `cors`, `content`) yine çalışır.
 
+## Örnek çıktı
+
+![recon-orchestrator demo](docs/demo.svg)
+
+Her çalıştırma `recon_runs/<host>_<zaman>/` altına `report.md`, `report.json` ve
+`findings.sarif` yazar. Rapor biçimi için bkz. [examples/sample-report.md](examples/sample-report.md).
+
 ## Kurulum
 
 ```bash

@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="420" viewBox="0 0 820 420" font-family="SFMono-Regular,Consolas,Menlo,monospace" font-size="14">
+  <defs>
+    <style>
+      .bg{fill:#0d1117}
+      .bar{fill:#161b22}
+      .txt{fill:#c9d1d9}
+      .dim{fill:#8b949e}
+      .prompt{fill:#58a6ff}
+      .cmd{fill:#e6edf3}
+      .warn{fill:#d29922}
+      .ok{fill:#3fb950}
+      .high{fill:#f85149}
+      .med{fill:#d29922}
+      .low{fill:#58a6ff}
+      .info{fill:#8b949e}
+      .run{fill:#58a6ff}
+    </style>
+  </defs>
+
+  <!-- window -->
+  <rect class="bg" x="0" y="0" width="820" height="420" rx="10"/>
+  <rect class="bar" x="0" y="0" width="820" height="36" rx="10"/>
+  <rect class="bar" x="0" y="20" width="820" height="16"/>
+  <circle cx="22" cy="18" r="6" fill="#ff5f56"/>
+  <circle cx="42" cy="18" r="6" fill="#ffbd2e"/>
+  <circle cx="62" cy="18" r="6" fill="#27c93f"/>
+  <text class="dim" x="410" y="23" text-anchor="middle">recon-orchestrator — demo</text>
+
+  <!-- body -->
+  <g>
+    <text x="20" y="70"><tspan class="prompt">$ </tspan><tspan class="cmd">python -m recon https://demo.example.com --authorized</tspan></text>
+
+    <text class="warn" x="20" y="96">UYARI: Bu araç hedefe gerçek istekler gönderir. Yalnızca yetkili</text>
+    <text class="warn" x="20" y="114">olduğunuz sistemlerde kullanın.</text>
+
+    <text x="20" y="142"><tspan class="run">[*]</tspan><tspan class="txt"> headers çalışıyor...</tspan></text>
+    <text x="20" y="162"><tspan class="run">[*]</tspan><tspan class="txt"> cors çalışıyor...</tspan></text>
+    <text x="20" y="182"><tspan class="run">[*]</tspan><tspan class="txt"> content çalışıyor...</tspan></text>
+    <text x="20" y="202"><tspan class="run">[*]</tspan><tspan class="txt"> ports çalışıyor...</tspan></text>
+    <text x="20" y="222"><tspan class="run">[*]</tspan><tspan class="txt"> tls çalışıyor...</tspan></text>
+    <text x="20" y="242"><tspan class="run">[*]</tspan><tspan class="txt"> web çalışıyor...</tspan></text>
+
+    <text x="20" y="276"><tspan class="ok">[+]</tspan><tspan class="txt"> Bitti. Rapor: recon_runs/demo.example.com_20260101-120000</tspan></text>
+    <text x="20" y="298">
+      <tspan class="high">1 high</tspan><tspan class="dim">, </tspan><tspan class="med">2 medium</tspan><tspan class="dim">, </tspan><tspan class="low">3 low</tspan><tspan class="dim">, </tspan><tspan class="info">4 info</tspan>
+    </text>
+
+    <text class="dim" x="20" y="334">report.md · report.json · findings.sarif</text>
+
+    <text x="20" y="372"><tspan class="prompt">$ </tspan><tspan class="cmd">_</tspan></text>
+  </g>
+</svg>
