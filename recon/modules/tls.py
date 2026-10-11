@@ -1,23 +1,30 @@
-"""TLS configuration review via testssl.sh (Docker)."""
+"""TLS configuration review via testssl.sh (Docker), parsing JSON output.
+
+Using testssl's ``--jsonfile`` instead of grepping the terminal output lets us
+trust testssl's own severity rating per check and survives output reformatting.
+"""
 from __future__ import annotations
 
+import json
+import os
+import tempfile
 from urllib.parse import urlparse
 
 from ..dockerutil import ensure_image
 from ..dockerutil import run as docker_run
-from ..findings import Finding
+from ..findings import Finding, slugify
 
 NAME = "tls"
 NEEDS_DOCKER = True
 IMAGE = "drwetter/testssl.sh"
 
-# substring in testssl output -> (rule slug, severity, title)
-BAD_SIGNALS = {
-    "SSLv2      offered": ("sslv2-enabled", "high", "SSLv2 destekleniyor"),
-    "SSLv3      offered": ("sslv3-enabled", "high", "SSLv3 destekleniyor"),
-    "TLS 1      offered": ("tls10-enabled", "medium", "TLS 1.0 destekleniyor (eski)"),
-    "TLS 1.1    offered": ("tls11-enabled", "medium", "TLS 1.1 destekleniyor (eski)"),
-    "VULNERABLE": ("vulnerable", "high", "testssl bir zafiyet işaretledi"),
+# testssl severity -> our severity (OK/INFO/DEBUG are not findings)
+SEV_MAP = {
+    "CRITICAL": "critical",
+    "HIGH": "high",
+    "MEDIUM": "medium",
+    "LOW": "low",
+    "WARN": "low",
 }
 
 
@@ -28,22 +35,36 @@ def _hostport(target: str) -> str:
     return f"{host}:{port}"
 
 
-def parse_testssl(out: str) -> list[Finding]:
-    """Pure parser for testssl.sh text output; testable without Docker."""
+def parse_testssl_json(json_text: str) -> list[Finding]:
+    """Pure parser for testssl.sh ``--jsonfile`` output; testable without Docker."""
     findings: list[Finding] = []
-    for signal, (slug, sev, title) in BAD_SIGNALS.items():
-        if signal in out:
-            ev = next((ln.strip() for ln in out.splitlines() if signal in ln), signal)
-            findings.append(Finding(
-                NAME, title, sev, "testssl.sh çıktısında işaretlendi.",
-                evidence=ev,
-                recommendation="Eski protokol/şifreleyicileri kapat; TLS 1.2+ zorla.",
-                rule_id=f"{NAME}.{slug}",
-            ))
-    if not findings and ("TLS 1.3" in out or "TLS 1.2" in out):
+    try:
+        entries = json.loads(json_text)
+    except (json.JSONDecodeError, ValueError):
+        return findings
+    if not isinstance(entries, list):
+        return findings
+
+    saw_any = False
+    for e in entries:
+        if not isinstance(e, dict):
+            continue
+        saw_any = True
+        sev = SEV_MAP.get(str(e.get("severity", "")).upper())
+        if not sev:
+            continue
+        check_id = str(e.get("id", "finding"))
+        finding_text = str(e.get("finding", ""))
+        findings.append(Finding(
+            NAME, f"TLS: {check_id}", sev, finding_text or check_id,
+            evidence=f"{check_id}: {finding_text}".strip(": "),
+            recommendation="Eski protokol/zayıf şifreleyicileri kapat; TLS 1.2+ zorla.",
+            rule_id=f"{NAME}.{slugify(check_id)}",
+        ))
+    if not findings and saw_any:
         findings.append(Finding(
             NAME, "TLS yapılandırması sağlam", "info",
-            "Eski protokol/zayıf şifreleyici tespit edilmedi.",
+            "testssl kayda değer (LOW+) bir sorun bildirmedi.",
             rule_id=f"{NAME}.config-ok",
         ))
     return findings
@@ -53,8 +74,28 @@ def run(target: str, ctx: dict) -> list[Finding]:
     if not ensure_image(IMAGE):
         return [Finding(NAME, "testssl imajı indirilemedi", "info", IMAGE,
                         rule_id=f"{NAME}.image-unavailable")]
-    res = docker_run(
-        IMAGE, ["--quiet", "--color", "0", _hostport(target)],
-        timeout=ctx.get("tls_timeout", 400),
-    )
-    return parse_testssl(res.stdout)
+    out_dir = tempfile.mkdtemp(prefix="recon-tls-")
+    try:
+        docker_run(
+            IMAGE,
+            ["--quiet", "--color", "0", "--jsonfile", "/out/testssl.json",
+             _hostport(target)],
+            timeout=ctx.get("tls_timeout", 400),
+            volumes={out_dir: "/out"},
+        )
+        json_path = os.path.join(out_dir, "testssl.json")
+        if not os.path.exists(json_path):
+            return [Finding(NAME, "TLS: JSON çıktısı alınamadı", "info",
+                            "testssl JSON dosyası oluşmadı.",
+                            rule_id=f"{NAME}.no-output")]
+        with open(json_path, encoding="utf-8", errors="replace") as fh:
+            return parse_testssl_json(fh.read())
+    finally:
+        try:
+            os.remove(os.path.join(out_dir, "testssl.json"))
+        except OSError:
+            pass
+        try:
+            os.rmdir(out_dir)
+        except OSError:
+            pass
