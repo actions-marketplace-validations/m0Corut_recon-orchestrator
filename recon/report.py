@@ -61,19 +61,23 @@ def to_json(result: ScanResult, meta: dict) -> str:
     }, indent=2, ensure_ascii=False)
 
 
+INFO_URI = "https://github.com/m0Corut/recon-orchestrator"
+
+
 def to_sarif(result: ScanResult, meta: dict) -> str:
     rules, results = {}, []
     for f in result.findings:
-        rule_id = f"{f.module}/{f.title}"[:200]
-        rules.setdefault(rule_id, {
-            "id": rule_id,
+        rules.setdefault(f.rule_id, {
+            "id": f.rule_id,
+            "name": f.rule_id,
             "shortDescription": {"text": f.title},
             "defaultConfiguration": {"level": _SARIF_LEVEL.get(f.severity, "note")},
         })
         results.append({
-            "ruleId": rule_id,
+            "ruleId": f.rule_id,
             "level": _SARIF_LEVEL.get(f.severity, "note"),
             "message": {"text": f.detail + (f"\nKanıt: {f.evidence}" if f.evidence else "")},
+            "partialFingerprints": {"reconFingerprint/v1": f.fingerprint},
             "locations": [{
                 "physicalLocation": {
                     "artifactLocation": {"uri": result.target}
@@ -86,7 +90,8 @@ def to_sarif(result: ScanResult, meta: dict) -> str:
         "runs": [{
             "tool": {"driver": {
                 "name": "recon-orchestrator",
-                "informationUri": "https://github.com/",
+                "informationUri": INFO_URI,
+                "version": meta.get("version", "0.0.0"),
                 "rules": list(rules.values()),
             }},
             "results": results,

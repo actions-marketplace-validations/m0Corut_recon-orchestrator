@@ -28,7 +28,10 @@ def run(target: str, ctx: dict) -> list[Finding]:
         if not acao:
             continue
         if acao == origin or acao == "*":
-            sev = "high" if (acao == origin and acac == "true") else "medium"
+            if acao == origin and acac == "true":
+                sev, slug = "high", "reflects-origin-with-credentials"
+            else:
+                sev, slug = "medium", "permissive-acao"
             findings.append(Finding(
                 NAME, "CORS yanlış yapılandırması", sev,
                 f"Sunucu Origin '{origin}' değerini yansıtıyor "
@@ -36,5 +39,6 @@ def run(target: str, ctx: dict) -> list[Finding]:
                 evidence=f"Origin: {origin} -> ACAO: {acao}",
                 recommendation="İzin verilen origin'leri allowlist ile sınırla; "
                                "'*' + credentials birlikte kullanma.",
+                rule_id=f"{NAME}.{slug}",
             ))
     return findings

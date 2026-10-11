@@ -67,23 +67,23 @@ def run(target: str, ctx: dict) -> list[Finding]:
 
     for path, status, url in sorted(hits, key=lambda x: x[1]):
         # Heuristic severity for obviously sensitive paths
-        sev = "info"
+        sev, slug = "info", "accessible-path"
         low = path.lower()
         if any(s in low for s in (".env", ".git", ".sql", "wp-config",
                                    "backup", "dump", ".ds_store")) and status == 200:
-            sev = "high"
-        elif status in (401, 403):
-            sev = "info"
+            sev, slug = "high", "sensitive-file"
         findings.append(Finding(
             NAME, f"Erişilebilir yol: /{path}", sev,
             f"HTTP {status} döndü (catch-all {base_status} değil).",
             evidence=f"{status} {url}",
             recommendation="Hassas dosya/dizinse erişimi kapat.",
+            rule_id=f"{NAME}.{slug}",
         ))
     if not findings:
         findings.append(Finding(
             NAME, "İçerik keşfi: temiz", "info",
             f"{len(words)} yol denendi, kayda değer yol bulunamadı "
             f"(catch-all durum: {base_status}).",
+            rule_id=f"{NAME}.clean",
         ))
     return findings

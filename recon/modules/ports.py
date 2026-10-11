@@ -31,18 +31,11 @@ def _host(target: str) -> str:
     return p.hostname or target
 
 
-def run(target: str, ctx: dict) -> list[Finding]:
-    host = _host(target)
-    if not ensure_image(IMAGE):
-        return [Finding(NAME, "nmap imajı indirilemedi", "info", IMAGE)]
-    res = docker_run(
-        IMAGE,
-        ["-Pn", "-sV", "--top-ports", str(ctx.get("top_ports", 100)), "-T4", host],
-        timeout=ctx.get("nmap_timeout", 300),
-    )
+def parse_nmap(stdout: str) -> list[Finding]:
+    """Pure parser for `nmap -sV` text output; testable without Docker."""
     findings: list[Finding] = []
     open_ports: list[str] = []
-    for line in res.stdout.splitlines():
+    for line in stdout.splitlines():
         m = LINE_RE.match(line.strip())
         if not m:
             continue
@@ -55,10 +48,25 @@ def run(target: str, ctx: dict) -> list[Finding]:
             findings.append(Finding(
                 NAME, f"Açık servis: {port}/{service}", sev, note,
                 evidence=f"{port}/tcp open {service} {version}".strip(),
+                rule_id=f"{NAME}.exposed-{service}",
             ))
     if open_ports:
         findings.append(Finding(
             NAME, "Açık portlar", "info", "Tespit edilen açık portlar.",
             evidence="; ".join(open_ports),
+            rule_id=f"{NAME}.open-ports",
         ))
     return findings
+
+
+def run(target: str, ctx: dict) -> list[Finding]:
+    host = _host(target)
+    if not ensure_image(IMAGE):
+        return [Finding(NAME, "nmap imajı indirilemedi", "info", IMAGE,
+                        rule_id=f"{NAME}.image-unavailable")]
+    res = docker_run(
+        IMAGE,
+        ["-Pn", "-sV", "--top-ports", str(ctx.get("top_ports", 100)), "-T4", host],
+        timeout=ctx.get("nmap_timeout", 300),
+    )
+    return parse_nmap(res.stdout)

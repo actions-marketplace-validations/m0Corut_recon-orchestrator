@@ -39,22 +39,30 @@ def run(target: str, ctx: dict) -> list[Finding]:
         args += ["-tags", tags]
 
     res = docker_run(IMAGE, args, timeout=ctx.get("nuclei_timeout", 1200))
+    return parse_nuclei(res.stdout, severities)
+
+
+def parse_nuclei(stdout: str, severities: str = "") -> list[Finding]:
+    """Pure parser for `nuclei -nc` text lines; testable without Docker."""
     findings: list[Finding] = []
-    for line in res.stdout.splitlines():
+    for line in stdout.splitlines():
         m = LINE_RE.match(line.strip())
         if not m:
             continue
         sev = m.group("sev").lower()
         if sev not in VALID_SEV:
             sev = "info"
+        template = m.group("id")
         findings.append(Finding(
-            NAME, f"nuclei: {m.group('id')}", sev,
+            NAME, f"nuclei: {template}", sev,
             f"{m.group('proto')} şablonu eşleşti.",
-            evidence=f"{m.group('id')} -> {m.group('url')}",
+            evidence=f"{template} -> {m.group('url')}",
+            rule_id=f"{NAME}.nuclei.{template}",
         ))
     if not findings:
         findings.append(Finding(
             NAME, "nuclei: eşleşme yok", "info",
-            f"{severities} seviyesinde bulgu yok.",
+            f"{severities or 'seçili'} seviyesinde bulgu yok.",
+            rule_id=f"{NAME}.nuclei.no-match",
         ))
     return findings
