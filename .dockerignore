@@ -1,0 +1,12 @@
+.git
+recon_runs/
+**/__pycache__/
+*.pyc
+dist/
+build/
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

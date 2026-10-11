@@ -39,9 +39,20 @@ Her çalıştırma `recon_runs/<host>_<zaman>/` altına `report.md`, `report.jso
 ```bash
 git clone <repo-url> && cd recon-orchestrator
 pip install -r requirements.txt
-# veya paket olarak:
-pip install .
+# veya paket olarak (DNS modülü için [dns] extra):
+pip install ".[dns]"
 ```
+
+### Docker imajı (araçlar dahil)
+
+Tüm araçları (nmap, nuclei, testssl) paketleyen tek imaj — yerel kuruluma gerek yok:
+
+```bash
+docker run --rm -v "$PWD:/work" ghcr.io/m0corut/recon-orchestrator \
+  https://ornek.com --authorized
+```
+
+Bu imaj araçları native binary olarak içerir (Docker-içinde-Docker gerekmez).
 
 ## Kullanım
 
