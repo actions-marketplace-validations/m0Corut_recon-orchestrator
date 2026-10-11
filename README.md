@@ -76,6 +76,11 @@ python -m recon init                       # recon.yaml şablonu yazar
 python -m recon --config recon.yaml --authorized
 ```
 
+**Paralellik:** Modüller varsayılan olarak paralel çalışır (en uzun süreyi alan
+nuclei/testssl/nmap artık örtüşür). `--jobs N` ile eşzamanlılık sınırlanır,
+`--serial` ile sıraya alınır. Aktif HTTP modülleri ortak bir hız bütçesini
+(`--rate`, toplam istek/sn) paylaşır, böylece paralellik hedefi yormaz.
+
 **Yapılandırma dosyası:** `recon init` ile oluşturduğun `recon.yaml`'da hedefler,
 kapsam, modüller, dil, `fail_on`/`fail_on_new` ve modül ayarları (nuclei etiketleri,
 port sayısı, wordlist vb.) tanımlanır. CLI bayrakları config'i ezer. `targets` birden

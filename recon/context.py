@@ -26,6 +26,8 @@ class ScanContext:
     wordlist_entries: list[str] | None = None
     # scope allowlist (set by the engine/CLI); None means unrestricted
     scope: Any = None
+    # shared rate limiter (set by the engine); None means no limiting
+    limiter: Any = None
     # escape hatch for options not (yet) promoted to fields
     extra: dict[str, Any] = field(default_factory=dict)
 

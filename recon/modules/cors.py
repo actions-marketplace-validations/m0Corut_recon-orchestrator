@@ -17,10 +17,11 @@ def run(target: str, ctx: dict) -> list[Finding]:
     findings: list[Finding] = []
     timeout = ctx.get("http_timeout", 15)
     scope = ctx.get("scope") or Scope.allow_all()
+    limiter = ctx.get("limiter")
     for origin in PROBES:
         try:
             r = scoped_get(target, scope, timeout=timeout,
-                           headers={"Origin": origin})
+                           headers={"Origin": origin}, limiter=limiter)
         except Exception:
             continue
         acao = r.headers.get("Access-Control-Allow-Origin")

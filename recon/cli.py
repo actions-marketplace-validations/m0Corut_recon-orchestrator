@@ -23,6 +23,7 @@ from .dockerutil import docker_available
 from .engine import resolve_modules, run_scan
 from .findings import SEVERITY_RANK
 from .modules import REGISTRY
+from .ratelimit import RateLimiter
 from .report import to_json, to_markdown, to_sarif
 from .scope import Scope
 
@@ -75,6 +76,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Aynı host için en son önceki çalıştırmayı otomatik baz alma")
     p.add_argument("--fail-on-new", default=None,
                    help="Bu önem seviyesi+ YENİ bulgu varsa çıkış kodu 2")
+    p.add_argument("--jobs", type=int, default=None,
+                   help="Aynı anda çalışacak modül sayısı (varsayılan: tümü)")
+    p.add_argument("--serial", action="store_true",
+                   help="Modülleri paralel yerine sırayla çalıştır")
     p.add_argument("-v", "--version", action="version",
                    version=f"recon-orchestrator {__version__}")
     return p
@@ -135,7 +140,8 @@ def _scan_one(target: str, settings: dict) -> int:
 
     scope = Scope.for_target(target, extra=settings["scope"],
                              allow_private=settings["allow_private"])
-    ctx = ScanContext(rate=settings["rate"], http_timeout=15, scope=scope)
+    ctx = ScanContext(rate=settings["rate"], http_timeout=15, scope=scope,
+                      limiter=RateLimiter(settings["rate"]))
     opts = settings["options"]
     for field in ("top_ports", "nuclei_tags", "nuclei_severity", "content_threads",
                   "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout"):
@@ -152,13 +158,16 @@ def _scan_one(target: str, settings: dict) -> int:
         if kind == "run":
             print(f"[*] {target}: {msg} çalışıyor...", file=sys.stderr)
             ran.append(msg)
+        elif kind == "done":
+            print(f"[✓] {msg}", file=sys.stderr)
         elif kind == "skip":
             print(f"[~] {msg}: Docker yok, atlandı.", file=sys.stderr)
         elif kind == "error":
             print(f"[!] {msg}", file=sys.stderr)
 
     result = run_scan(target, selected, ctx,
-                      docker_ok=docker_available(), on_event=on_event)
+                      docker_ok=docker_available(), on_event=on_event,
+                      jobs=settings["jobs"], serial=settings["serial"])
 
     meta = {"modules": ran, "rate": settings["rate"], "version": __version__,
             "started_at": started_at,
@@ -248,6 +257,8 @@ def main(argv: list[str] | None = None) -> int:
         "baseline": args.baseline,
         "no_auto_baseline": args.no_auto_baseline,
         "wordlist": args.wordlist,
+        "jobs": args.jobs,
+        "serial": args.serial,
         "options": cfg.get("options", {}),
     }
 

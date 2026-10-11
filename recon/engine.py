@@ -34,15 +34,23 @@ def run_scan(
     *,
     docker_ok: bool | None = None,
     on_event: Callable[[str, str], None] | None = None,
+    jobs: int | None = None,
+    serial: bool = False,
 ) -> ScanResult:
     """Run the named modules against `target` and return a ScanResult.
 
     on_event(kind, message): optional progress callback. kind is
     "run" | "skip" | "error". Never raises for a single module failure.
+    jobs: max concurrent modules (default: all runnable). serial: force sequential.
     """
+    import threading
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+
     if docker_ok is None:
         docker_ok = docker_available()
     result = ScanResult(target=target)
+    lock = threading.Lock()
 
     def emit(kind: str, msg: str) -> None:
         if on_event:
@@ -59,17 +67,41 @@ def run_scan(
             emit("error", f"scope: {host} allowlist dışında")
             return result
 
+    runnable: list[str] = []
     for name in module_names:
         spec = REGISTRY[name]
         if spec.needs_docker and not docker_ok:
             result.errors.append(f"{name}: Docker çalışmıyor, atlandı.")
             emit("skip", name)
             continue
+        runnable.append(name)
+
+    seen_fp: set[str] = set()
+
+    def run_module(name: str) -> None:
         emit("run", name)
+        start = time.monotonic()
         try:
-            mod = spec.load()
-            result.add(*mod.run(target, ctx))
+            found = REGISTRY[name].load().run(target, ctx)
         except Exception as e:  # noqa: BLE001 - bir modül hatası taramayı durdurmasın
-            result.errors.append(f"{name}: {e}")
+            with lock:
+                result.errors.append(f"{name}: {e}")
             emit("error", f"{name}: {e}")
+            return
+        elapsed = time.monotonic() - start
+        with lock:
+            for f in found:
+                if f.fingerprint in seen_fp:
+                    continue
+                seen_fp.add(f.fingerprint)
+                result.add(f)
+        emit("done", f"{name} ({elapsed:.1f}s, {len(found)})")
+
+    if serial or jobs == 1 or len(runnable) <= 1:
+        for name in runnable:
+            run_module(name)
+    else:
+        workers = jobs or len(runnable)
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            list(ex.map(run_module, runnable))
     return result

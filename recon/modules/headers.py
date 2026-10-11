@@ -76,7 +76,8 @@ def analyze(headers: dict, status: int, url: str) -> list[Finding]:
 def run(target: str, ctx: dict) -> list[Finding]:
     scope = ctx.get("scope") or Scope.allow_all()
     try:
-        r = scoped_get(target, scope, timeout=ctx.get("http_timeout", 15))
+        r = scoped_get(target, scope, timeout=ctx.get("http_timeout", 15),
+                       limiter=ctx.get("limiter"))
     except ScopeViolation as e:
         return [Finding(NAME, "Out-of-scope redirect blocked", "info",
                         f"A redirect pointed outside the allowed scope: {e}",

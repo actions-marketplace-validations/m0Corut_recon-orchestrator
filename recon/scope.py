@@ -73,16 +73,20 @@ class Scope:
 
 
 def scoped_get(url: str, scope: Scope, *, timeout: int = 15,
-               headers: dict | None = None, max_redirects: int = 5):
+               headers: dict | None = None, max_redirects: int = 5,
+               limiter=None):
     """GET that enforces scope before the initial request and every redirect.
 
     Returns the final ``requests.Response``. Raises ScopeViolation if any hop
-    (including a redirect Location) points outside the allowlist.
+    (including a redirect Location) points outside the allowlist. If a limiter is
+    given, a token is acquired before every request (aggregate rate ceiling).
     """
     current = url
     resp = None
     for _ in range(max_redirects + 1):
         scope.check(current)
+        if limiter is not None:
+            limiter.acquire()
         resp = requests.get(current, timeout=timeout, headers=headers,
                             allow_redirects=False)
         if resp.status_code in (301, 302, 303, 307, 308):

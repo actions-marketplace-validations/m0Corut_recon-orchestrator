@@ -45,10 +45,13 @@ def run(target: str, ctx: dict) -> list[Finding]:
     words = ctx.get("wordlist_entries") or BUILTIN
     base = target.rstrip("/") + "/"
     base_status, _ = _baseline(target, timeout)
+    limiter = ctx.get("limiter")
 
     def probe(path: str):
         url = urljoin(base, path)
         try:
+            if limiter is not None:
+                limiter.acquire()
             r = requests.get(url, timeout=timeout, allow_redirects=False)
         except Exception:
             return None
