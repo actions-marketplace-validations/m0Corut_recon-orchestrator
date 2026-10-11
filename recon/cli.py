@@ -25,7 +25,15 @@ from .findings import SEVERITY_RANK
 from .modules import REGISTRY
 from .ratelimit import RateLimiter
 from .report import to_json, to_markdown, to_sarif
+from .report_html import to_html
 from .scope import Scope
+
+_RENDERERS = {
+    "md": ("report.md", to_markdown),
+    "json": ("report.json", to_json),
+    "sarif": ("findings.sarif", to_sarif),
+    "html": ("report.html", to_html),
+}
 
 BANNER_WARNING = (
     "UYARI: Bu araç hedefe gerçek istekler gönderir. Yalnızca SAHİBİ OLDUĞUNUZ "
@@ -80,6 +88,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Aynı anda çalışacak modül sayısı (varsayılan: tümü)")
     p.add_argument("--serial", action="store_true",
                    help="Modülleri paralel yerine sırayla çalıştır")
+    p.add_argument("--format", default=None,
+                   help="Rapor biçimleri (virgülle): md,json,sarif,html "
+                        "(varsayılan: hepsi)")
     p.add_argument("-v", "--version", action="version",
                    version=f"recon-orchestrator {__version__}")
     return p
@@ -94,13 +105,13 @@ def _host_slug(target: str) -> str:
     return target.split("://", 1)[-1].replace("/", "_").strip("_")
 
 
-def _write_reports(result, meta, output_dir, lang="en", diff=None) -> str:
+def _write_reports(result, meta, output_dir, lang="en", diff=None,
+                   formats=None) -> str:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     run_dir = os.path.join(output_dir, f"{_host_slug(result.target)}_{stamp}")
     os.makedirs(run_dir, exist_ok=True)
-    for fname, renderer in (("report.md", to_markdown),
-                            ("report.json", to_json),
-                            ("findings.sarif", to_sarif)):
+    for fmt in (formats or list(_RENDERERS)):
+        fname, renderer = _RENDERERS[fmt]
         with open(os.path.join(run_dir, fname), "w", encoding="utf-8") as fh:
             fh.write(renderer(result, meta, lang, diff))
     return run_dir
@@ -183,7 +194,7 @@ def _scan_one(target: str, settings: dict) -> int:
             diff = compute_diff(result, baseline)
 
     run_dir = _write_reports(result, meta, settings["output_dir"],
-                             settings["lang"], diff)
+                             settings["lang"], diff, settings["formats"])
 
     counts = result.counts()
     summary = ", ".join(f"{counts[s]} {s}" for s in counts if counts[s]) or "bulgu yok"
@@ -259,8 +270,15 @@ def main(argv: list[str] | None = None) -> int:
         "wordlist": args.wordlist,
         "jobs": args.jobs,
         "serial": args.serial,
+        "formats": ([f.strip() for f in args.format.split(",") if f.strip()]
+                    if args.format else None),
         "options": cfg.get("options", {}),
     }
+    if settings["formats"]:
+        bad = [f for f in settings["formats"] if f not in _RENDERERS]
+        if bad:
+            print(f"HATA: bilinmeyen biçim(ler): {', '.join(bad)}", file=sys.stderr)
+            return 1
 
     rc = 0
     for raw_target in targets:
