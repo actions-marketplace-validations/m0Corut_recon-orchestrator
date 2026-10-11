@@ -59,6 +59,12 @@ def to_html(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG,
         items = "".join(f"<li>{_esc(e)}</li>" for e in result.errors)
         errors_html = f"<h2>{_esc(t['errors'])}</h2><ul class='err'>{items}</ul>"
 
+    analyst_html = ""
+    if meta.get("analyst_summary"):
+        body_txt = _esc(meta["analyst_summary"]).replace("\n", "<br>")
+        analyst_html = (f'<h2>{_esc(t["analyst"])}</h2>'
+                        f'<div class="analyst">{body_txt}</div>')
+
     diff_html = ""
     if diff is not None:
         diff_html = (f'<p class="diff">{_esc(t["baseline"])}: '
@@ -127,6 +133,7 @@ def to_html(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG,
     <th>{_esc(t['severity'])}</th><th>{_esc(t['module'])}</th><th>{_esc(t['title_col'])}</th>
   </tr></thead><tbody>{''.join(rows)}</tbody></table>
   {errors_html}
+  {analyst_html}
 </main>
 <script>
 function flt() {{

@@ -112,6 +112,7 @@ UI: dict[str, dict[str, str]] = {
         "detail": "Detail", "errors": "Errors",
         "baseline": "Baseline comparison", "new": "new", "resolved": "resolved",
         "new_findings": "New since baseline",
+        "analyst": "Analyst summary (automated, unverified)",
     },
     "tr": {
         "report_title": "Güvenlik Tarama Raporu",
@@ -125,6 +126,7 @@ UI: dict[str, dict[str, str]] = {
         "detail": "Açıklama", "errors": "Hatalar",
         "baseline": "Önceki tarama ile karşılaştırma", "new": "yeni",
         "resolved": "çözülen", "new_findings": "Önceki taramaya göre yeni",
+        "analyst": "Analist özeti (otomatik, doğrulanmamış)",
     },
 }
 

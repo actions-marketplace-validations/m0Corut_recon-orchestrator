@@ -68,6 +68,8 @@ def to_markdown(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG,
     if result.errors:
         lines += [f"## {t['errors']}", ""]
         lines += [f"- {e}" for e in result.errors]
+    if meta.get("analyst_summary"):
+        lines += ["", f"## {t['analyst']}", "", meta["analyst_summary"]]
     return "\n".join(lines)
 
 

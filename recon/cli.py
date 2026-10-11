@@ -108,6 +108,13 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Issue açılacak asgari önem (varsayılan: high)")
     p.add_argument("--close-resolved", action="store_true",
                    help="Çözülen bulguların issue'larını kapat")
+    p.add_argument("--analyst", default=None, choices=["openai", "anthropic"],
+                   help="Opsiyonel: bulguları LLM ile özetle (API anahtarı env'den)")
+    p.add_argument("--analyst-model", default=None, help="Analist modeli")
+    p.add_argument("--analyst-base-url", default=None,
+                   help="OpenAI-uyumlu uç nokta (yerel modeller için)")
+    p.add_argument("--analyst-include-evidence", action="store_true",
+                   help="Analiste kanıt metnini de gönder (varsayılan: gönderme)")
     p.add_argument("-v", "--version", action="version",
                    version=f"recon-orchestrator {__version__}")
     return p
@@ -205,6 +212,28 @@ def _scan_one(target: str, settings: dict) -> int:
     meta = {"modules": ran, "rate": settings["rate"], "version": __version__,
             "started_at": started_at,
             "ended_at": datetime.now(timezone.utc).isoformat()}
+
+    # Optional: analyst summary (opt-in)
+    if settings.get("analyst"):
+        from .analyst import build_findings_view, summarize
+        from .i18n import localize
+        provider = settings["analyst"]
+        env_key = {"openai": "OPENAI_API_KEY",
+                   "anthropic": "ANTHROPIC_API_KEY"}.get(provider, "")
+        api_key = os.environ.get(env_key, "")
+        base = settings.get("analyst_base_url")
+        if not api_key and not base:
+            print(f"[!] {env_key} yok; analist özeti atlandı.", file=sys.stderr)
+        else:
+            view = build_findings_view(result, settings["lang"], localize,
+                                       settings["analyst_include_evidence"])
+            print(f"[*] Analist özeti üretiliyor ({provider})...", file=sys.stderr)
+            try:
+                meta["analyst_summary"] = summarize(
+                    view, provider, api_key=api_key,
+                    model=settings.get("analyst_model"), base_url=base)
+            except Exception as e:  # noqa: BLE001
+                print(f"[!] Analist hatası: {e}", file=sys.stderr)
 
     diff = None
     baseline_path = settings["baseline"]
@@ -318,6 +347,10 @@ def main(argv: list[str] | None = None) -> int:
         "github_issues": args.github_issues,
         "issue_min_severity": args.issue_min_severity,
         "close_resolved": args.close_resolved,
+        "analyst": args.analyst,
+        "analyst_model": args.analyst_model,
+        "analyst_base_url": args.analyst_base_url,
+        "analyst_include_evidence": args.analyst_include_evidence,
         "formats": ([f.strip() for f in args.format.split(",") if f.strip()]
                     if args.format else None),
         "options": cfg.get("options", {}),
