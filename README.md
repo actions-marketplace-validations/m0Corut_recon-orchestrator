@@ -70,7 +70,16 @@ python -m recon https://ornek.com --authorized --fail-on-new high
 # Belirli bir baseline ile; ya da iki raporu doğrudan karşılaştır:
 python -m recon https://ornek.com --authorized --baseline ./onceki/report.json
 python -m recon diff ./onceki/report.json ./yeni/report.json
+
+# YAML yapılandırma: örnek oluştur, düzenle, çalıştır:
+python -m recon init                       # recon.yaml şablonu yazar
+python -m recon --config recon.yaml --authorized
 ```
+
+**Yapılandırma dosyası:** `recon init` ile oluşturduğun `recon.yaml`'da hedefler,
+kapsam, modüller, dil, `fail_on`/`fail_on_new` ve modül ayarları (nuclei etiketleri,
+port sayısı, wordlist vb.) tanımlanır. CLI bayrakları config'i ezer. `targets` birden
+çok hedef içerebilir — hepsi sırayla taranır.
 
 **Run diff:** Her çalıştırma, aynı host için en son önceki çalıştırmayı otomatik
 baz alır ve yeni/çözülen bulguları raporlar (`--no-auto-baseline` ile kapatılır).

@@ -11,6 +11,7 @@ import sys
 from datetime import datetime, timezone
 
 from . import __version__
+from .config import ConfigError, load_config, write_template
 from .context import ScanContext
 from .diff import (
     compute_diff,
@@ -44,12 +45,15 @@ def build_parser() -> argparse.ArgumentParser:
         description="Yetkili güvenlik taraması için araç orkestratörü "
                     "(nmap/nuclei/testssl + yerleşik kontroller).",
     )
-    p.add_argument("target", help="Hedef URL veya alan adı (örn. https://ornek.com)")
-    p.add_argument("-m", "--modules", default="all",
+    p.add_argument("target", nargs="?", default=None,
+                   help="Hedef URL veya alan adı (config targets kullanılacaksa opsiyonel)")
+    p.add_argument("-c", "--config", default=None,
+                   help="YAML yapılandırma dosyası (recon.yaml)")
+    p.add_argument("-m", "--modules", default=None,
                    help=f"Virgülle modül listesi veya 'all'. Seçenekler: {', '.join(REGISTRY)}")
-    p.add_argument("-o", "--output-dir", default="recon_runs",
+    p.add_argument("-o", "--output-dir", default=None,
                    help="Rapor çıktı dizini (varsayılan: recon_runs)")
-    p.add_argument("--rate", type=int, default=20,
+    p.add_argument("--rate", type=int, default=None,
                    help="Aktif araçlar için istek/sn sınırı (varsayılan: 20)")
     p.add_argument("--wordlist", help="content modülü için kelime listesi dosyası")
     p.add_argument("--authorized", action="store_true",
@@ -57,7 +61,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--fail-on", default=None,
                    help="Bu önem seviyesi+ bulgu varsa çıkış kodu 2 "
                         "(info|low|medium|high|critical)")
-    p.add_argument("--lang", default="en", choices=["en", "tr"],
+    p.add_argument("--lang", default=None, choices=["en", "tr"],
                    help="Rapor dili (varsayılan: en)")
     p.add_argument("--scope", default=None,
                    help="Ek izinli host'lar (virgülle; *.ornek.com destekli). "
@@ -121,40 +125,32 @@ def _run_diff_command(argv: list[str]) -> int:
     return 2 if new else 0
 
 
-def main(argv: list[str] | None = None) -> int:
-    raw = list(sys.argv[1:] if argv is None else argv)
-    if raw and raw[0] == "diff":
-        return _run_diff_command(raw[1:])
-
-    args = build_parser().parse_args(argv)
-
-    print(BANNER_WARNING, file=sys.stderr)
-    if not args.authorized:
-        print("\nHATA: --authorized bayrağı gerekli. Yetkiniz olduğunu onaylamadan "
-              "tarama başlatılmaz.", file=sys.stderr)
-        return 1
-
-    target = _normalize_target(args.target)
-
+def _scan_one(target: str, settings: dict) -> int:
+    """Run a single target end to end; returns its exit code (0 ok, 2 gate hit)."""
     try:
-        selected = resolve_modules(args.modules)
+        selected = resolve_modules(settings["modules"])
     except ValueError as e:
         print(f"HATA: {e}", file=sys.stderr)
         return 1
 
-    extra_scope = [s.strip() for s in (args.scope or "").split(",") if s.strip()]
-    scope = Scope.for_target(target, extra=extra_scope,
-                             allow_private=args.allow_private)
-    ctx = ScanContext(rate=args.rate, http_timeout=15, scope=scope)
-    if args.wordlist:
-        ctx.wordlist_entries = _load_wordlist(args.wordlist)
+    scope = Scope.for_target(target, extra=settings["scope"],
+                             allow_private=settings["allow_private"])
+    ctx = ScanContext(rate=settings["rate"], http_timeout=15, scope=scope)
+    opts = settings["options"]
+    for field in ("top_ports", "nuclei_tags", "nuclei_severity", "content_threads",
+                  "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout"):
+        if field in opts:
+            setattr(ctx, field, opts[field])
+    wordlist = settings["wordlist"] or opts.get("wordlist")
+    if wordlist:
+        ctx.wordlist_entries = _load_wordlist(wordlist)
 
     ran: list[str] = []
     started_at = datetime.now(timezone.utc).isoformat()
 
     def on_event(kind: str, msg: str) -> None:
         if kind == "run":
-            print(f"[*] {msg} çalışıyor...", file=sys.stderr)
+            print(f"[*] {target}: {msg} çalışıyor...", file=sys.stderr)
             ran.append(msg)
         elif kind == "skip":
             print(f"[~] {msg}: Docker yok, atlandı.", file=sys.stderr)
@@ -164,23 +160,21 @@ def main(argv: list[str] | None = None) -> int:
     result = run_scan(target, selected, ctx,
                       docker_ok=docker_available(), on_event=on_event)
 
-    meta = {
-        "modules": ran, "rate": args.rate, "version": __version__,
-        "started_at": started_at,
-        "ended_at": datetime.now(timezone.utc).isoformat(),
-    }
+    meta = {"modules": ran, "rate": settings["rate"], "version": __version__,
+            "started_at": started_at,
+            "ended_at": datetime.now(timezone.utc).isoformat()}
 
-    # baseline / diff
     diff = None
-    baseline_path = args.baseline
-    if not baseline_path and not args.no_auto_baseline:
-        baseline_path = find_latest_baseline(args.output_dir, _host_slug(target))
+    baseline_path = settings["baseline"]
+    if not baseline_path and not settings["no_auto_baseline"]:
+        baseline_path = find_latest_baseline(settings["output_dir"], _host_slug(target))
     if baseline_path:
         baseline = fingerprints_from_report(baseline_path)
         if baseline:
             diff = compute_diff(result, baseline)
 
-    run_dir = _write_reports(result, meta, args.output_dir, args.lang, diff)
+    run_dir = _write_reports(result, meta, settings["output_dir"],
+                             settings["lang"], diff)
 
     counts = result.counts()
     summary = ", ".join(f"{counts[s]} {s}" for s in counts if counts[s]) or "bulgu yok"
@@ -190,14 +184,77 @@ def main(argv: list[str] | None = None) -> int:
         print(f"    baseline: {len(diff.new)} yeni, {len(diff.resolved)} çözülen",
               file=sys.stderr)
 
-    if args.fail_on_new:
-        if exceeds_new_threshold(diff or compute_diff(result, {}), args.fail_on_new):
-            return 2
-    if args.fail_on:
-        threshold = SEVERITY_RANK.get(args.fail_on.lower())
+    if settings["fail_on_new"] and exceeds_new_threshold(
+            diff or compute_diff(result, {}), settings["fail_on_new"]):
+        return 2
+    if settings["fail_on"]:
+        threshold = SEVERITY_RANK.get(settings["fail_on"].lower())
         if threshold is not None and result.max_rank() >= threshold:
             return 2
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    raw = list(sys.argv[1:] if argv is None else argv)
+    if raw and raw[0] == "diff":
+        return _run_diff_command(raw[1:])
+    if raw and raw[0] == "init":
+        path = raw[1] if len(raw) > 1 else "recon.yaml"
+        try:
+            write_template(path)
+        except ConfigError as e:
+            print(f"HATA: {e}", file=sys.stderr)
+            return 1
+        print(f"Örnek yapılandırma yazıldı: {path}")
+        return 0
+
+    args = build_parser().parse_args(argv)
+
+    print(BANNER_WARNING, file=sys.stderr)
+    if not args.authorized:
+        print("\nHATA: --authorized bayrağı gerekli. Yetkiniz olduğunu onaylamadan "
+              "tarama başlatılmaz.", file=sys.stderr)
+        return 1
+
+    cfg: dict = {}
+    if args.config:
+        try:
+            cfg = load_config(args.config)
+        except ConfigError as e:
+            print(f"HATA (config): {e}", file=sys.stderr)
+            return 1
+
+    # Resolve targets: positional wins, else config targets.
+    if args.target:
+        targets = [args.target]
+    else:
+        targets = list(cfg.get("targets", []))
+    if not targets:
+        print("HATA: hedef verilmedi (pozisyonel argüman ya da config targets).",
+              file=sys.stderr)
+        return 1
+
+    cfg_scope = cfg.get("scope", [])
+    cli_scope = [s.strip() for s in (args.scope or "").split(",") if s.strip()]
+    settings = {
+        "modules": args.modules if args.modules is not None else cfg.get("modules", "all"),
+        "output_dir": args.output_dir or cfg.get("output_dir", "recon_runs"),
+        "rate": args.rate if args.rate is not None else cfg.get("rate", 20),
+        "lang": args.lang or cfg.get("lang", "en"),
+        "scope": cli_scope or cfg_scope,
+        "allow_private": args.allow_private or cfg.get("allow_private", False),
+        "fail_on": args.fail_on or cfg.get("fail_on"),
+        "fail_on_new": args.fail_on_new or cfg.get("fail_on_new"),
+        "baseline": args.baseline,
+        "no_auto_baseline": args.no_auto_baseline,
+        "wordlist": args.wordlist,
+        "options": cfg.get("options", {}),
+    }
+
+    rc = 0
+    for raw_target in targets:
+        rc = max(rc, _scan_one(_normalize_target(raw_target), settings))
+    return rc
 
 
 if __name__ == "__main__":
