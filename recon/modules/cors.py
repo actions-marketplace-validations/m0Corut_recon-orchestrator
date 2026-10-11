@@ -1,9 +1,8 @@
 """CORS misconfiguration check: does the server reflect an attacker Origin?"""
 from __future__ import annotations
 
-import requests
-
 from ..findings import Finding
+from ..scope import Scope, scoped_get
 
 NAME = "cors"
 NEEDS_DOCKER = False
@@ -17,10 +16,11 @@ PROBES = [
 def run(target: str, ctx: dict) -> list[Finding]:
     findings: list[Finding] = []
     timeout = ctx.get("http_timeout", 15)
+    scope = ctx.get("scope") or Scope.allow_all()
     for origin in PROBES:
         try:
-            r = requests.get(target, headers={"Origin": origin},
-                             timeout=timeout, allow_redirects=True)
+            r = scoped_get(target, scope, timeout=timeout,
+                           headers={"Origin": origin})
         except Exception:
             continue
         acao = r.headers.get("Access-Control-Allow-Origin")

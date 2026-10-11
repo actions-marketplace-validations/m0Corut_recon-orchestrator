@@ -24,6 +24,8 @@ class ScanContext:
     nuclei_tags: str | None = None
     content_threads: int = 10
     wordlist_entries: list[str] | None = None
+    # scope allowlist (set by the engine/CLI); None means unrestricted
+    scope: Any = None
     # escape hatch for options not (yet) promoted to fields
     extra: dict[str, Any] = field(default_factory=dict)
 

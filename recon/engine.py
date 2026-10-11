@@ -48,6 +48,17 @@ def run_scan(
         if on_event:
             on_event(kind, msg)
 
+    # Scope gate: refuse to scan a target that is not in the allowlist.
+    scope = getattr(ctx, "scope", None)
+    if scope is not None:
+        from urllib.parse import urlparse
+        host = urlparse(target).hostname or target
+        if not scope.allows(host):
+            result.errors.append(
+                f"scope: hedef '{host}' allowlist dışında, tarama iptal edildi.")
+            emit("error", f"scope: {host} allowlist dışında")
+            return result
+
     for name in module_names:
         spec = REGISTRY[name]
         if spec.needs_docker and not docker_ok:

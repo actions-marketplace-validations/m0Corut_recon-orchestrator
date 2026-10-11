@@ -60,7 +60,15 @@ python -m recon https://ornek.com --authorized --fail-on high
 
 # Rapor dili (varsayılan İngilizce; Türkçe için):
 python -m recon https://ornek.com --authorized --lang tr
+
+# Kapsam: varsayılan sadece hedef host; ek host'lara izin ver:
+python -m recon https://ornek.com --authorized --scope "api.ornek.com,*.cdn.ornek.com"
 ```
+
+**Kapsam güvenliği:** Araç varsayılan olarak yalnızca hedef host'a istek atar.
+HTTP modülleri her isteği ve her yönlendirmeyi kapsam allowlist'ine karşı
+kontrol eder, böylece bir yönlendirme probe'u 3. taraf bir host'a sıçrayamaz.
+İç/özel adresler için `--allow-private` gerekir.
 
 Raporlar varsayılan olarak İngilizce üretilir; `--lang tr` ile Türkçe alınır.
 Bulgu kimliği (`rule_id`) ve SARIF dilden bağımsızdır, sadece insan-okur metin çevrilir.

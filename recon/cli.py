@@ -17,6 +17,7 @@ from .engine import resolve_modules, run_scan
 from .findings import SEVERITY_RANK
 from .modules import REGISTRY
 from .report import to_json, to_markdown, to_sarif
+from .scope import Scope
 
 BANNER_WARNING = (
     "UYARI: Bu araç hedefe gerçek istekler gönderir. Yalnızca SAHİBİ OLDUĞUNUZ "
@@ -52,6 +53,11 @@ def build_parser() -> argparse.ArgumentParser:
                         "(info|low|medium|high|critical)")
     p.add_argument("--lang", default="en", choices=["en", "tr"],
                    help="Rapor dili (varsayılan: en)")
+    p.add_argument("--scope", default=None,
+                   help="Ek izinli host'lar (virgülle; *.ornek.com destekli). "
+                        "Varsayılan: sadece hedef host.")
+    p.add_argument("--allow-private", action="store_true",
+                   help="Özel/loopback adreslere izin ver (iç sistemler için)")
     p.add_argument("-v", "--version", action="version",
                    version=f"recon-orchestrator {__version__}")
     return p
@@ -92,7 +98,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"HATA: {e}", file=sys.stderr)
         return 1
 
-    ctx = ScanContext(rate=args.rate, http_timeout=15)
+    extra_scope = [s.strip() for s in (args.scope or "").split(",") if s.strip()]
+    scope = Scope.for_target(target, extra=extra_scope,
+                             allow_private=args.allow_private)
+    ctx = ScanContext(rate=args.rate, http_timeout=15, scope=scope)
     if args.wordlist:
         ctx.wordlist_entries = _load_wordlist(args.wordlist)
 

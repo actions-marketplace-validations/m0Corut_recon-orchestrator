@@ -6,9 +6,8 @@ English; Turkish comes from recon/i18n.py keyed by rule_id/msg_key.
 """
 from __future__ import annotations
 
-import requests
-
 from ..findings import Finding
+from ..scope import Scope, ScopeViolation, scoped_get
 
 NAME = "headers"
 NEEDS_DOCKER = False
@@ -75,9 +74,14 @@ def analyze(headers: dict, status: int, url: str) -> list[Finding]:
 
 
 def run(target: str, ctx: dict) -> list[Finding]:
+    scope = ctx.get("scope") or Scope.allow_all()
     try:
-        r = requests.get(target, timeout=ctx.get("http_timeout", 15),
-                         allow_redirects=True)
+        r = scoped_get(target, scope, timeout=ctx.get("http_timeout", 15))
+    except ScopeViolation as e:
+        return [Finding(NAME, "Out-of-scope redirect blocked", "info",
+                        f"A redirect pointed outside the allowed scope: {e}",
+                        rule_id=f"{NAME}.scope-blocked",
+                        params={"host": str(e)})]
     except Exception as e:
         return [Finding(NAME, "HTTP request failed", "info",
                         f"Could not fetch {target}: {e}",
