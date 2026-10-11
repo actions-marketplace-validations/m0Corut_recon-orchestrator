@@ -68,6 +68,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--wordlist", help="content modülü için kelime listesi dosyası")
     p.add_argument("--authorized", action="store_true",
                    help="Hedefi test etmeye yetkili olduğunuzu onaylar (zorunlu)")
+    p.add_argument("-q", "--quiet", action="store_true",
+                   help="İlerleme çıktısını bastır (sadece özet ve hatalar)")
     p.add_argument("--fail-on", default=None,
                    help="Bu önem seviyesi+ bulgu varsa çıkış kodu 2 "
                         "(info|low|medium|high|critical)")
@@ -194,14 +196,17 @@ def _scan_one(target: str, settings: dict) -> int:
     ran: list[str] = []
     started_at = datetime.now(timezone.utc).isoformat()
 
+    quiet = settings.get("quiet", False)
+
     def on_event(kind: str, msg: str) -> None:
         if kind == "run":
-            print(f"[*] {target}: {msg} çalışıyor...", file=sys.stderr)
             ran.append(msg)
-        elif kind == "done":
+            if not quiet:
+                print(f"[*] {target}: {msg} çalışıyor...", file=sys.stderr)
+        elif kind == "done" and not quiet:
             print(f"[✓] {msg}", file=sys.stderr)
-        elif kind == "skip":
-            print(f"[~] {msg}: Docker yok, atlandı.", file=sys.stderr)
+        elif kind == "skip" and not quiet:
+            print(f"[~] {msg}: atlandı.", file=sys.stderr)
         elif kind == "error":
             print(f"[!] {msg}", file=sys.stderr)
 
@@ -283,10 +288,44 @@ def _scan_one(target: str, settings: dict) -> int:
     return 0
 
 
+def _run_modules_command() -> int:
+    print("Mevcut modüller:\n")
+    for name, spec in REGISTRY.items():
+        tag = "docker/araç" if spec.needs_docker else "saf-python"
+        active = "aktif" if spec.active else "pasif"
+        print(f"  {name:10s} [{tag}, {active}] {spec.description}")
+    return 0
+
+
+def _run_doctor_command() -> int:
+    import shutil
+
+    from .dockerutil import docker_available
+    from .runner import TOOLS
+    print("recon doctor\n")
+    print(f"  Docker: {'var' if docker_available() else 'YOK'}")
+    print("  Native araçlar:")
+    for tool, (_image, binary) in TOOLS.items():
+        found = shutil.which(binary)
+        print(f"    {tool:8s} ({binary}): {found or 'YOK'}")
+    print("  Opsiyonel paketler:")
+    for pkg in ("yaml", "dns"):
+        try:
+            __import__(pkg)
+            print(f"    {pkg}: var")
+        except ImportError:
+            print(f"    {pkg}: YOK")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     raw = list(sys.argv[1:] if argv is None else argv)
     if raw and raw[0] == "diff":
         return _run_diff_command(raw[1:])
+    if raw and raw[0] == "modules":
+        return _run_modules_command()
+    if raw and raw[0] == "doctor":
+        return _run_doctor_command()
     if raw and raw[0] == "init":
         path = raw[1] if len(raw) > 1 else "recon.yaml"
         try:
@@ -351,6 +390,7 @@ def main(argv: list[str] | None = None) -> int:
         "analyst_model": args.analyst_model,
         "analyst_base_url": args.analyst_base_url,
         "analyst_include_evidence": args.analyst_include_evidence,
+        "quiet": args.quiet,
         "formats": ([f.strip() for f in args.format.split(",") if f.strip()]
                     if args.format else None),
         "options": cfg.get("options", {}),

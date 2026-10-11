@@ -159,6 +159,21 @@ Yeniden kullanılabilir **composite action** ile tek adımda tarama + SARIF uplo
 workflow'dur (bu action'ı kullanır, SARIF'i code scanning'e yükler). Hedefi kendi
 izinli sisteminle değiştir.
 
+## Yardımcı komutlar
+
+```bash
+python -m recon modules      # modülleri ve açıklamalarını listeler
+python -m recon doctor       # Docker/native araç ve opsiyonel paket kontrolü
+python -m recon init         # örnek recon.yaml yazar
+python -m recon diff a.json b.json   # iki raporu karşılaştırır
+```
+
+## Kararlılık / sürümleme
+
+Sürüm 1.0'dan itibaren CLI bayrakları ve `report.json` şeması
+([docs/report.schema.json](docs/report.schema.json)) kararlıdır; kırıcı
+değişiklikler yeni bir ana sürümle gelir ve CHANGELOG'da belirtilir.
+
 ## Geliştirme
 
 ```bash
