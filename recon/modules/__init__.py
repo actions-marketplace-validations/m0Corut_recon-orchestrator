@@ -57,6 +57,9 @@ REGISTRY: dict[str, ModuleSpec] = {
     "openapi": ModuleSpec(
         "openapi", "recon.modules.openapi", False, True,
         "OpenAPI/Swagger şema-güdümlü endpoint kapsamı (salt-okunur)"),
+    "mail": ModuleSpec(
+        "mail", "recon.modules.mail", False, True,
+        "SMTP/mail: STARTTLS, MTA-STS, TLS-RPT (kapsam korumalı, salt-okunur)"),
 }
 
 # Default execution order: cheap pure-Python modules first, Docker ones after.
