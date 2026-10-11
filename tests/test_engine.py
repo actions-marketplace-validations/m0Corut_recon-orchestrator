@@ -2,7 +2,6 @@ import pytest
 
 from recon.context import ScanContext
 from recon.engine import resolve_modules, run_scan
-from recon.findings import Finding
 
 
 def test_resolve_all_expands_to_default_order():
@@ -40,7 +39,7 @@ def test_run_scan_skips_docker_when_unavailable():
 
 def test_run_scan_module_exception_isolated(monkeypatch):
     # a module that raises should be caught and recorded, not propagate
-    import recon.modules.headers as headers
+    from recon.modules import headers
     monkeypatch.setattr(headers, "run",
                         lambda t, c: (_ for _ in ()).throw(RuntimeError("boom")))
     ctx = ScanContext()

@@ -5,7 +5,8 @@ future config file, or an embedding application through one entry point.
 """
 from __future__ import annotations
 
-from typing import Callable, Iterable
+from collections.abc import Iterable
+from typing import Callable
 
 from .context import ScanContext
 from .dockerutil import docker_available

@@ -1,5 +1,9 @@
 # recon-orchestrator
 
+[![ci](https://github.com/m0Corut/recon-orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/m0Corut/recon-orchestrator/actions/workflows/ci.yml)
+![license](https://img.shields.io/badge/license-Apache--2.0-blue)
+![python](https://img.shields.io/badge/python-3.9%2B-blue)
+
 Yetkili güvenlik testleri için hafif bir **araç orkestratörü**. Tek bir komutla
 tanınmış açık kaynak güvenlik araçlarını (nmap, nuclei, testssl.sh) ve yerleşik
 Python kontrollerini (güvenlik başlıkları, CORS, içerik keşfi) bir hedefe karşı
@@ -90,6 +94,21 @@ Yeni modül eklemek: `modules/` içine `NAME`, `NEEDS_DOCKER` ve
 
 `.github/workflows/scan.yml` örneği her push'ta Docker'sız modülleri çalıştırıp
 SARIF'i code scanning'e yükler. Hedefi kendi izinli sisteminle değiştir.
+
+## Geliştirme
+
+```bash
+pip install -e ".[dev]"   # ruff, mypy, pytest
+ruff check recon/ tests/
+mypy recon/
+pytest -q
+pre-commit install        # opsiyonel: commit öncesi otomatik lint
+```
+
+Her push/PR `ci.yml` ile lint + mypy + pytest'i (Python 3.9–3.13) çalıştırır.
+Yeni modül: `recon/modules/` içine `NAME`, `NEEDS_DOCKER`, `run(target, ctx)`
+içeren dosya koy, `recon/modules/__init__.py` registry'sine `ModuleSpec` ekle,
+parser'ı saf fonksiyon yap ve `tests/` altında fixture tabanlı test ekle.
 
 ## Lisans
 

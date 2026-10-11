@@ -51,7 +51,11 @@ def run(image: str, args: list[str], *, timeout: int = 600,
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         return ToolResult(r.stdout, r.stderr, r.returncode)
     except subprocess.TimeoutExpired as e:
-        return ToolResult(e.stdout or "", e.stderr or "", -1, timed_out=True)
+        def _as_text(x: object) -> str:
+            if isinstance(x, bytes):
+                return x.decode("utf-8", "replace")
+            return x or "" if isinstance(x, str) else ""
+        return ToolResult(_as_text(e.stdout), _as_text(e.stderr), -1, timed_out=True)
 
 
 def ensure_image(image: str, *, timeout: int = 600) -> bool:

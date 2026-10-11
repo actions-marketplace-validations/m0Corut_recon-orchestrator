@@ -1,6 +1,6 @@
 [project]
 name = "recon-orchestrator"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Authorized security-scan tool orchestrator (nmap/nuclei/testssl + built-in checks) with Markdown/JSON/SARIF reports."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -15,6 +15,14 @@ classifiers = [
     "Topic :: Security",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+    "ruff>=0.6",
+    "mypy>=1.8",
+    "types-requests",
+]
+
 [project.scripts]
 recon = "recon.cli:main"
 
@@ -22,5 +30,28 @@ recon = "recon.cli:main"
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.dynamic]
+version = { attr = "recon.__version__" }
+
 [tool.setuptools.packages.find]
 include = ["recon*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# BLE001 (blind except) is intentional: a single module failure must not abort
+# the whole scan. S112 try/except/continue in cors probing is intentional too.
+ignore = ["B904"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = false
+# loose to start; tighten over time
+check_untyped_defs = true

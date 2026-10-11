@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-from .findings import ScanResult, SEVERITIES
+from .findings import SEVERITIES, ScanResult
 
 _SARIF_LEVEL = {
     "info": "note", "low": "note", "medium": "warning",
@@ -20,7 +20,7 @@ def to_markdown(result: ScanResult, meta: dict) -> str:
         "",
         f"- **Tarih:** {now}",
         f"- **Modüller:** {', '.join(meta.get('modules', []))}",
-        f"- **Özet:** "
+        "- **Özet:** "
         + ", ".join(f"{counts[s]} {s}" for s in reversed(SEVERITIES) if counts[s])
         + (" (bulgu yok)" if not result.findings else ""),
         "",
@@ -65,7 +65,8 @@ INFO_URI = "https://github.com/m0Corut/recon-orchestrator"
 
 
 def to_sarif(result: ScanResult, meta: dict) -> str:
-    rules, results = {}, []
+    rules: dict[str, dict] = {}
+    results: list[dict] = []
     for f in result.findings:
         rules.setdefault(f.rule_id, {
             "id": f.rule_id,

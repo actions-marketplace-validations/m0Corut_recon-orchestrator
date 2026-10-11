@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import re
 
-from ..dockerutil import ensure_image, run as docker_run
+from ..dockerutil import ensure_image
+from ..dockerutil import run as docker_run
 from ..findings import Finding
 
 NAME = "web"
