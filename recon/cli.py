@@ -106,6 +106,7 @@ def main(argv: list[str] | None = None) -> int:
         ctx.wordlist_entries = _load_wordlist(args.wordlist)
 
     ran: list[str] = []
+    started_at = datetime.now(timezone.utc).isoformat()
 
     def on_event(kind: str, msg: str) -> None:
         if kind == "run":
@@ -119,7 +120,11 @@ def main(argv: list[str] | None = None) -> int:
     result = run_scan(target, selected, ctx,
                       docker_ok=docker_available(), on_event=on_event)
 
-    meta = {"modules": ran, "rate": args.rate, "version": __version__}
+    meta = {
+        "modules": ran, "rate": args.rate, "version": __version__,
+        "started_at": started_at,
+        "ended_at": datetime.now(timezone.utc).isoformat(),
+    }
     run_dir = _write_reports(result, meta, args.output_dir, args.lang)
 
     counts = result.counts()

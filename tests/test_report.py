@@ -47,3 +47,47 @@ def test_sarif_uses_rule_id_and_fingerprints():
     assert run["tool"]["driver"]["informationUri"].startswith("https://github.com/")
     for res in run["results"]:
         assert "reconFingerprint/v1" in res["partialFingerprints"]
+
+
+_VALID_LEVELS = {"none", "note", "warning", "error"}
+
+
+def test_sarif_structure_is_valid():
+    """Dependency-free structural validation of the SARIF we emit."""
+    meta = {**META, "started_at": "2026-01-01T00:00:00+00:00",
+            "ended_at": "2026-01-01T00:01:00+00:00"}
+    sarif = json.loads(to_sarif(_result(), meta))
+    assert sarif["version"] == "2.1.0"
+    assert sarif["$schema"].endswith("sarif-schema-2.1.0.json")
+    assert len(sarif["runs"]) == 1
+    run = sarif["runs"][0]
+
+    driver = run["tool"]["driver"]
+    assert driver["name"] and driver["version"]
+    declared = {r["id"] for r in driver["rules"]}
+    # every rule has help + fullDescription + helpUri
+    for r in driver["rules"]:
+        assert r["help"]["text"]
+        assert r["fullDescription"]["text"]
+        assert r["helpUri"].startswith("https://")
+
+    # every result references a declared rule, a valid level, a fingerprint
+    for res in run["results"]:
+        assert res["ruleId"] in declared
+        assert res["level"] in _VALID_LEVELS
+        assert res["message"]["text"]
+        assert res["partialFingerprints"]["reconFingerprint/v1"]
+        assert res["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
+
+    inv = run["invocations"][0]
+    assert inv["executionSuccessful"] is True
+    assert inv["startTimeUtc"] and inv["endTimeUtc"]
+
+
+def test_sarif_invocation_reports_errors():
+    r = _result()
+    r.errors.append("web: Docker unavailable")
+    run = json.loads(to_sarif(r, META))["runs"][0]
+    inv = run["invocations"][0]
+    assert inv["executionSuccessful"] is False
+    assert inv["toolExecutionNotifications"][0]["message"]["text"] == "web: Docker unavailable"

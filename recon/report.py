@@ -76,20 +76,27 @@ INFO_URI = "https://github.com/m0Corut/recon-orchestrator"
 
 
 def to_sarif(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG) -> str:
+    t = ui(lang)
     rules: dict[str, dict] = {}
     results: list[dict] = []
     for f in result.findings:
-        title, detail, _ = localize(f, lang)
-        rules.setdefault(f.rule_id, {
-            "id": f.rule_id,
-            "name": f.rule_id,
-            "shortDescription": {"text": title},
-            "defaultConfiguration": {"level": _SARIF_LEVEL.get(f.severity, "note")},
-        })
+        title, detail, rec = localize(f, lang)
+        if f.rule_id not in rules:
+            help_text = detail + (f"\n\n{t['recommendation']}: {rec}" if rec else "")
+            rules[f.rule_id] = {
+                "id": f.rule_id,
+                "name": f.rule_id,
+                "shortDescription": {"text": title},
+                "fullDescription": {"text": detail or title},
+                "help": {"text": help_text or title},
+                "helpUri": INFO_URI,
+                "defaultConfiguration": {"level": _SARIF_LEVEL.get(f.severity, "note")},
+                "properties": {"module": f.module, "severity": f.severity},
+            }
         results.append({
             "ruleId": f.rule_id,
             "level": _SARIF_LEVEL.get(f.severity, "note"),
-            "message": {"text": detail + (f"\n{ui(lang)['evidence']}: {f.evidence}"
+            "message": {"text": detail + (f"\n{t['evidence']}: {f.evidence}"
                                           if f.evidence else "")},
             "partialFingerprints": {"reconFingerprint/v1": f.fingerprint},
             "locations": [{
@@ -98,6 +105,18 @@ def to_sarif(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG) -> str:
                 }
             }],
         })
+
+    invocation = {
+        "executionSuccessful": not result.errors,
+        "toolExecutionNotifications": [
+            {"level": "error", "message": {"text": e}} for e in result.errors
+        ],
+    }
+    if meta.get("started_at"):
+        invocation["startTimeUtc"] = meta["started_at"]
+    if meta.get("ended_at"):
+        invocation["endTimeUtc"] = meta["ended_at"]
+
     sarif = {
         "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
         "version": "2.1.0",
@@ -108,6 +127,7 @@ def to_sarif(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG) -> str:
                 "version": meta.get("version", "0.0.0"),
                 "rules": list(rules.values()),
             }},
+            "invocations": [invocation],
             "results": results,
         }],
     }
