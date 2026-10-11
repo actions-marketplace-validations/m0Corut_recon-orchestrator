@@ -67,13 +67,21 @@ def run_scan(
             emit("error", f"scope: {host} allowlist dışında")
             return result
 
+    runner = getattr(ctx, "runner", None)
     runnable: list[str] = []
     for name in module_names:
         spec = REGISTRY[name]
-        if spec.needs_docker and not docker_ok:
-            result.errors.append(f"{name}: Docker çalışmıyor, atlandı.")
-            emit("skip", name)
-            continue
+        if spec.needs_docker:
+            if runner is not None:
+                if not all(runner.can_run(t) for t in spec.tools):
+                    result.errors.append(
+                        f"{name}: gerekli araç(lar) yok ({runner.name}), atlandı.")
+                    emit("skip", name)
+                    continue
+            elif not docker_ok:
+                result.errors.append(f"{name}: Docker çalışmıyor, atlandı.")
+                emit("skip", name)
+                continue
         runnable.append(name)
 
     seen_fp: set[str] = set()

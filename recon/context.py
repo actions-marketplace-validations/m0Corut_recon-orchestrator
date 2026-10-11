@@ -28,6 +28,8 @@ class ScanContext:
     scope: Any = None
     # shared rate limiter (set by the engine); None means no limiting
     limiter: Any = None
+    # tool runner (Docker/native); None means modules use a default DockerRunner
+    runner: Any = None
     # escape hatch for options not (yet) promoted to fields
     extra: dict[str, Any] = field(default_factory=dict)
 

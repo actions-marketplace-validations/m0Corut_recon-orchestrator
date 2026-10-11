@@ -19,9 +19,10 @@ from types import ModuleType
 class ModuleSpec:
     name: str
     import_path: str
-    needs_docker: bool
+    needs_docker: bool    # true = needs an external tool (via Docker or native)
     active: bool          # does it send traffic to the target host?
     description: str
+    tools: tuple[str, ...] = ()   # logical tools this module needs (for runner)
 
     def load(self) -> ModuleType:
         return importlib.import_module(self.import_path)
@@ -39,13 +40,14 @@ REGISTRY: dict[str, ModuleSpec] = {
         "Dizin/dosya keşfi (catch-all filtreli)"),
     "ports": ModuleSpec(
         "ports", "recon.modules.ports", True, True,
-        "Açık port/servis taraması (nmap)"),
+        "Açık port/servis taraması (nmap)", tools=("nmap",)),
     "tls": ModuleSpec(
         "tls", "recon.modules.tls", True, True,
-        "TLS yapılandırması: eski protokol/zayıf şifreleyici (testssl)"),
+        "TLS yapılandırması: eski protokol/zayıf şifreleyici (testssl)",
+        tools=("testssl",)),
     "web": ModuleSpec(
         "web", "recon.modules.web", True, True,
-        "Topluluk şablonlarıyla açık/teknoloji tespiti (nuclei)"),
+        "Topluluk şablonlarıyla açık/teknoloji tespiti (nuclei)", tools=("nuclei",)),
     "dns": ModuleSpec(
         "dns", "recon.modules.dns", False, False,
         "DNS & e-posta güvenliği: SPF/DMARC/DKIM/CAA/MX (dnspython gerekir)"),

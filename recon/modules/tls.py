@@ -6,17 +6,13 @@ trust testssl's own severity rating per check and survives output reformatting.
 from __future__ import annotations
 
 import json
-import os
-import tempfile
 from urllib.parse import urlparse
 
-from ..dockerutil import ensure_image
-from ..dockerutil import run as docker_run
 from ..findings import Finding, slugify
+from ..runner import OUT_PLACEHOLDER, DockerRunner
 
 NAME = "tls"
 NEEDS_DOCKER = True
-IMAGE = "drwetter/testssl.sh"
 
 # testssl severity -> our severity (OK/INFO/DEBUG are not findings)
 SEV_MAP = {
@@ -71,31 +67,16 @@ def parse_testssl_json(json_text: str) -> list[Finding]:
 
 
 def run(target: str, ctx: dict) -> list[Finding]:
-    if not ensure_image(IMAGE):
-        return [Finding(NAME, "testssl image unavailable", "info", IMAGE,
-                        rule_id=f"{NAME}.image-unavailable")]
-    out_dir = tempfile.mkdtemp(prefix="recon-tls-")
-    try:
-        docker_run(
-            IMAGE,
-            ["--quiet", "--color", "0", "--jsonfile", "/out/testssl.json",
-             _hostport(target)],
-            timeout=ctx.get("tls_timeout", 400),
-            volumes={out_dir: "/out"},
-        )
-        json_path = os.path.join(out_dir, "testssl.json")
-        if not os.path.exists(json_path):
-            return [Finding(NAME, "TLS: no JSON output", "info",
-                            "testssl did not produce a JSON file.",
-                            rule_id=f"{NAME}.no-output")]
-        with open(json_path, encoding="utf-8", errors="replace") as fh:
-            return parse_testssl_json(fh.read())
-    finally:
-        try:
-            os.remove(os.path.join(out_dir, "testssl.json"))
-        except OSError:
-            pass
-        try:
-            os.rmdir(out_dir)
-        except OSError:
-            pass
+    runner = ctx.get("runner") or DockerRunner()
+    content = runner.run_with_outfile(
+        "testssl",
+        ["--quiet", "--color", "0", "--jsonfile", OUT_PLACEHOLDER,
+         _hostport(target)],
+        ctx.get("tls_timeout", 400),
+        filename="testssl.json",
+    )
+    if not content:
+        return [Finding(NAME, "TLS: no JSON output", "info",
+                        "testssl did not produce a JSON file (tool unavailable?).",
+                        rule_id=f"{NAME}.no-output")]
+    return parse_testssl_json(content)

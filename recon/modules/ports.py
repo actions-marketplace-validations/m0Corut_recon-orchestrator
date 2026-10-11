@@ -8,13 +8,11 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from urllib.parse import urlparse
 
-from ..dockerutil import ensure_image
-from ..dockerutil import run as docker_run
 from ..findings import Finding
+from ..runner import DockerRunner
 
 NAME = "ports"
 NEEDS_DOCKER = True
-IMAGE = "instrumentisto/nmap"
 
 # nmap service names that mean "port responds but the service is unconfirmed"
 UNIDENTIFIED = {"", "tcpwrapped", "unknown", "unidentified"}
@@ -102,13 +100,15 @@ def parse_nmap_xml(xml_text: str) -> list[Finding]:
 
 def run(target: str, ctx: dict) -> list[Finding]:
     host = _host(target)
-    if not ensure_image(IMAGE):
-        return [Finding(NAME, "nmap image unavailable", "info", IMAGE,
-                        rule_id=f"{NAME}.image-unavailable")]
-    res = docker_run(
-        IMAGE,
+    runner = ctx.get("runner") or DockerRunner()
+    stdout = runner.run_capture(
+        "nmap",
         ["-Pn", "-sV", "--top-ports", str(ctx.get("top_ports", 100)),
          "-T4", "-oX", "-", host],
-        timeout=ctx.get("nmap_timeout", 300),
+        ctx.get("nmap_timeout", 300),
     )
-    return parse_nmap_xml(res.stdout)
+    if not stdout:
+        return [Finding(NAME, "nmap produced no output", "info",
+                        "Tool unavailable or no response.",
+                        rule_id=f"{NAME}.no-output")]
+    return parse_nmap_xml(stdout)

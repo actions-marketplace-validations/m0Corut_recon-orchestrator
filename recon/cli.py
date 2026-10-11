@@ -26,6 +26,7 @@ from .modules import REGISTRY
 from .ratelimit import RateLimiter
 from .report import to_json, to_markdown, to_sarif
 from .report_html import to_html
+from .runner import get_runner
 from .scope import Scope
 
 _RENDERERS = {
@@ -91,6 +92,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--format", default=None,
                    help="Rapor biçimleri (virgülle): md,json,sarif,html "
                         "(varsayılan: hepsi)")
+    p.add_argument("--runner", default="auto", choices=["auto", "docker", "native"],
+                   help="Dış araçlar nasıl çalışsın (varsayılan: auto)")
     p.add_argument("-v", "--version", action="version",
                    version=f"recon-orchestrator {__version__}")
     return p
@@ -152,7 +155,8 @@ def _scan_one(target: str, settings: dict) -> int:
     scope = Scope.for_target(target, extra=settings["scope"],
                              allow_private=settings["allow_private"])
     ctx = ScanContext(rate=settings["rate"], http_timeout=15, scope=scope,
-                      limiter=RateLimiter(settings["rate"]))
+                      limiter=RateLimiter(settings["rate"]),
+                      runner=get_runner(settings["runner"]))
     opts = settings["options"]
     for field in ("top_ports", "nuclei_tags", "nuclei_severity", "content_threads",
                   "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout"):
@@ -270,6 +274,7 @@ def main(argv: list[str] | None = None) -> int:
         "wordlist": args.wordlist,
         "jobs": args.jobs,
         "serial": args.serial,
+        "runner": args.runner,
         "formats": ([f.strip() for f in args.format.split(",") if f.strip()]
                     if args.format else None),
         "options": cfg.get("options", {}),

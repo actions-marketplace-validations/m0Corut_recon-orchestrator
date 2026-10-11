@@ -8,13 +8,11 @@ from __future__ import annotations
 
 import json
 
-from ..dockerutil import ensure_image
-from ..dockerutil import run as docker_run
 from ..findings import Finding
+from ..runner import DockerRunner
 
 NAME = "web"
 NEEDS_DOCKER = True
-IMAGE = "projectdiscovery/nuclei:latest"
 
 VALID_SEV = {"info", "low", "medium", "high", "critical"}
 
@@ -67,10 +65,7 @@ def parse_nuclei_jsonl(stdout: str, severities: str = "") -> list[Finding]:
 
 
 def run(target: str, ctx: dict) -> list[Finding]:
-    if not ensure_image(IMAGE):
-        return [Finding(NAME, "nuclei image unavailable", "info", IMAGE,
-                        rule_id=f"{NAME}.image-unavailable")]
-
+    runner = ctx.get("runner") or DockerRunner()
     severities = ctx.get("nuclei_severity", "low,medium,high,critical")
     args = [
         "-u", target,
@@ -83,5 +78,5 @@ def run(target: str, ctx: dict) -> list[Finding]:
     if tags:
         args += ["-tags", tags]
 
-    res = docker_run(IMAGE, args, timeout=ctx.get("nuclei_timeout", 1200))
-    return parse_nuclei_jsonl(res.stdout, severities)
+    stdout = runner.run_capture("nuclei", args, ctx.get("nuclei_timeout", 1200))
+    return parse_nuclei_jsonl(stdout, severities)
