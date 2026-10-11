@@ -110,6 +110,8 @@ UI: dict[str, dict[str, str]] = {
         "severity": "Severity", "module": "Module", "title_col": "Title",
         "evidence": "Evidence", "recommendation": "Recommendation",
         "detail": "Detail", "errors": "Errors",
+        "baseline": "Baseline comparison", "new": "new", "resolved": "resolved",
+        "new_findings": "New since baseline",
     },
     "tr": {
         "report_title": "Güvenlik Tarama Raporu",
@@ -121,6 +123,8 @@ UI: dict[str, dict[str, str]] = {
         "severity": "Önem", "module": "Modül", "title_col": "Başlık",
         "evidence": "Kanıt", "recommendation": "Öneri",
         "detail": "Açıklama", "errors": "Hatalar",
+        "baseline": "Önceki tarama ile karşılaştırma", "new": "yeni",
+        "resolved": "çözülen", "new_findings": "Önceki taramaya göre yeni",
     },
 }
 

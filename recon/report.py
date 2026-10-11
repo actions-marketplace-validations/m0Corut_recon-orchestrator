@@ -13,7 +13,8 @@ _SARIF_LEVEL = {
 }
 
 
-def to_markdown(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG) -> str:
+def to_markdown(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG,
+                diff=None) -> str:
     counts = result.counts()
     t = ui(lang)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -26,9 +27,25 @@ def to_markdown(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG) -> str
         f"- **{t['date']}:** {now}",
         f"- **{t['modules']}:** {', '.join(meta.get('modules', []))}",
         f"- **{t['summary']}:** {summary}",
+    ]
+    if diff is not None:
+        lines.append(
+            f"- **{t['baseline']}:** {len(diff.new)} {t['new']}, "
+            f"{len(diff.resolved)} {t['resolved']}")
+    lines += [
         "",
         f"> {t['warning']}",
         "",
+    ]
+    if diff is not None and diff.new:
+        lines += [f"## {t['new_findings']}", "",
+                  f"| {t['severity']} | {t['module']} | {t['title_col']} |",
+                  "|------|-------|--------|"]
+        for f in diff.new:
+            title, _, _ = localize(f, lang)
+            lines.append(f"| {f.severity.upper()} | {f.module} | {title} |")
+        lines.append("")
+    lines += [
         f"## {t['findings']}",
         "",
         f"| {t['severity']} | {t['module']} | {t['title_col']} |",
@@ -54,14 +71,18 @@ def to_markdown(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG) -> str
     return "\n".join(lines)
 
 
-def to_json(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG) -> str:
+def to_json(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG,
+            diff=None) -> str:
+    new_fps = diff.new_fingerprints if diff is not None else set()
     findings = []
     for f in result.sorted():
         title, detail, rec = localize(f, lang)
         d = f.to_dict()
         d["title"], d["detail"], d["recommendation"] = title, detail, rec
+        if diff is not None:
+            d["baseline_state"] = "new" if f.fingerprint in new_fps else "unchanged"
         findings.append(d)
-    return json.dumps({
+    out = {
         "target": result.target,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "lang": lang,
@@ -69,14 +90,20 @@ def to_json(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG) -> str:
         "counts": result.counts(),
         "findings": findings,
         "errors": result.errors,
-    }, indent=2, ensure_ascii=False)
+    }
+    if diff is not None:
+        out["diff"] = {"new": len(diff.new), "resolved": len(diff.resolved),
+                       "unchanged": len(diff.unchanged)}
+    return json.dumps(out, indent=2, ensure_ascii=False)
 
 
 INFO_URI = "https://github.com/m0Corut/recon-orchestrator"
 
 
-def to_sarif(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG) -> str:
+def to_sarif(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG,
+             diff=None) -> str:
     t = ui(lang)
+    new_fps = diff.new_fingerprints if diff is not None else set()
     rules: dict[str, dict] = {}
     results: list[dict] = []
     for f in result.findings:
@@ -93,7 +120,7 @@ def to_sarif(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG) -> str:
                 "defaultConfiguration": {"level": _SARIF_LEVEL.get(f.severity, "note")},
                 "properties": {"module": f.module, "severity": f.severity},
             }
-        results.append({
+        res = {
             "ruleId": f.rule_id,
             "level": _SARIF_LEVEL.get(f.severity, "note"),
             "message": {"text": detail + (f"\n{t['evidence']}: {f.evidence}"
@@ -104,7 +131,10 @@ def to_sarif(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG) -> str:
                     "artifactLocation": {"uri": result.target}
                 }
             }],
-        })
+        }
+        if diff is not None:
+            res["baselineState"] = "new" if f.fingerprint in new_fps else "unchanged"
+        results.append(res)
 
     invocation = {
         "executionSuccessful": not result.errors,

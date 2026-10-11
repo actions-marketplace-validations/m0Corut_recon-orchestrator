@@ -63,7 +63,19 @@ python -m recon https://ornek.com --authorized --lang tr
 
 # Kapsam: varsayılan sadece hedef host; ek host'lara izin ver:
 python -m recon https://ornek.com --authorized --scope "api.ornek.com,*.cdn.ornek.com"
+
+# CI'da sadece YENİ bulguda patlat (önceki çalıştırma otomatik baz alınır):
+python -m recon https://ornek.com --authorized --fail-on-new high
+
+# Belirli bir baseline ile; ya da iki raporu doğrudan karşılaştır:
+python -m recon https://ornek.com --authorized --baseline ./onceki/report.json
+python -m recon diff ./onceki/report.json ./yeni/report.json
 ```
+
+**Run diff:** Her çalıştırma, aynı host için en son önceki çalıştırmayı otomatik
+baz alır ve yeni/çözülen bulguları raporlar (`--no-auto-baseline` ile kapatılır).
+`--fail-on-new <önem>` yalnızca **yeni** bulgu bu seviyedeyse çıkış kodu 2 verir —
+böylece CI, önceden var olan bir eksikte sürekli kırmızı olmaz.
 
 **Kapsam güvenliği:** Araç varsayılan olarak yalnızca hedef host'a istek atar.
 HTTP modülleri her isteği ve her yönlendirmeyi kapsam allowlist'ine karşı
