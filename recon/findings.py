@@ -39,12 +39,19 @@ class Finding:
     evidence: str = ""
     recommendation: str = ""
     rule_id: str = ""
+    # msg_key selects the i18n catalogue entry (defaults to rule_id); params fill
+    # its {placeholders}. The title/detail/recommendation above are the English
+    # canonical fallback used when no catalogue entry exists for the language.
+    msg_key: str = ""
+    params: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.severity not in SEVERITY_RANK:
             self.severity = "info"
         if not self.rule_id:
             self.rule_id = f"{self.module}.{slugify(self.title) or 'finding'}"
+        if not self.msg_key:
+            self.msg_key = self.rule_id
 
     @property
     def rank(self) -> int:

@@ -57,7 +57,13 @@ python -m recon https://ornek.com --authorized --rate 10 --wordlist paths.txt
 
 # CI için: high+ bulgu varsa çıkış kodu 2
 python -m recon https://ornek.com --authorized --fail-on high
+
+# Rapor dili (varsayılan İngilizce; Türkçe için):
+python -m recon https://ornek.com --authorized --lang tr
 ```
+
+Raporlar varsayılan olarak İngilizce üretilir; `--lang tr` ile Türkçe alınır.
+Bulgu kimliği (`rule_id`) ve SARIF dilden bağımsızdır, sadece insan-okur metin çevrilir.
 
 Raporlar `recon_runs/<host>_<zaman>/` altına yazılır: `report.md`, `report.json`,
 `findings.sarif`.

@@ -17,10 +17,19 @@ def _result():
     return r
 
 
-def test_markdown_has_table_and_details():
+def test_markdown_english_by_default():
     md = to_markdown(_result(), META)
-    assert "| Önem | Modül | Başlık |" in md
+    assert "| Severity | Module | Title |" in md
     assert "MEDIUM" in md and "Missing HSTS" in md
+    assert "Security Scan Report" in md
+
+
+def test_markdown_turkish_when_requested():
+    md = to_markdown(_result(), META, lang="tr")
+    assert "| Önem | Modül | Başlık |" in md
+    # headers.missing-hsts has a Turkish catalogue entry
+    assert "Strict-Transport-Security" in md
+    assert "Güvenlik Tarama Raporu" in md
 
 
 def test_json_roundtrips_with_fingerprints():

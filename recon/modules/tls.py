@@ -58,13 +58,13 @@ def parse_testssl_json(json_text: str) -> list[Finding]:
         findings.append(Finding(
             NAME, f"TLS: {check_id}", sev, finding_text or check_id,
             evidence=f"{check_id}: {finding_text}".strip(": "),
-            recommendation="Eski protokol/zayıf şifreleyicileri kapat; TLS 1.2+ zorla.",
+            recommendation="Disable old protocols/weak ciphers; enforce TLS 1.2+.",
             rule_id=f"{NAME}.{slugify(check_id)}",
         ))
     if not findings and saw_any:
         findings.append(Finding(
-            NAME, "TLS yapılandırması sağlam", "info",
-            "testssl kayda değer (LOW+) bir sorun bildirmedi.",
+            NAME, "TLS configuration looks solid", "info",
+            "testssl reported no notable (LOW+) issue.",
             rule_id=f"{NAME}.config-ok",
         ))
     return findings
@@ -72,7 +72,7 @@ def parse_testssl_json(json_text: str) -> list[Finding]:
 
 def run(target: str, ctx: dict) -> list[Finding]:
     if not ensure_image(IMAGE):
-        return [Finding(NAME, "testssl imajı indirilemedi", "info", IMAGE,
+        return [Finding(NAME, "testssl image unavailable", "info", IMAGE,
                         rule_id=f"{NAME}.image-unavailable")]
     out_dir = tempfile.mkdtemp(prefix="recon-tls-")
     try:
@@ -85,8 +85,8 @@ def run(target: str, ctx: dict) -> list[Finding]:
         )
         json_path = os.path.join(out_dir, "testssl.json")
         if not os.path.exists(json_path):
-            return [Finding(NAME, "TLS: JSON çıktısı alınamadı", "info",
-                            "testssl JSON dosyası oluşmadı.",
+            return [Finding(NAME, "TLS: no JSON output", "info",
+                            "testssl did not produce a JSON file.",
                             rule_id=f"{NAME}.no-output")]
         with open(json_path, encoding="utf-8", errors="replace") as fh:
             return parse_testssl_json(fh.read())

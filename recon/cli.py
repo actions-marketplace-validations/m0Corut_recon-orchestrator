@@ -50,6 +50,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--fail-on", default=None,
                    help="Bu önem seviyesi+ bulgu varsa çıkış kodu 2 "
                         "(info|low|medium|high|critical)")
+    p.add_argument("--lang", default="en", choices=["en", "tr"],
+                   help="Rapor dili (varsayılan: en)")
     p.add_argument("-v", "--version", action="version",
                    version=f"recon-orchestrator {__version__}")
     return p
@@ -60,7 +62,7 @@ def _load_wordlist(path: str) -> list[str]:
         return [ln.strip() for ln in fh if ln.strip() and not ln.startswith("#")]
 
 
-def _write_reports(result, meta, output_dir) -> str:
+def _write_reports(result, meta, output_dir, lang="en") -> str:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     host = result.target.split("://", 1)[-1].replace("/", "_").strip("_")
     run_dir = os.path.join(output_dir, f"{host}_{stamp}")
@@ -69,7 +71,7 @@ def _write_reports(result, meta, output_dir) -> str:
                             ("report.json", to_json),
                             ("findings.sarif", to_sarif)):
         with open(os.path.join(run_dir, fname), "w", encoding="utf-8") as fh:
-            fh.write(renderer(result, meta))
+            fh.write(renderer(result, meta, lang))
     return run_dir
 
 
@@ -109,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
                       docker_ok=docker_available(), on_event=on_event)
 
     meta = {"modules": ran, "rate": args.rate, "version": __version__}
-    run_dir = _write_reports(result, meta, args.output_dir)
+    run_dir = _write_reports(result, meta, args.output_dir, args.lang)
 
     counts = result.counts()
     summary = ", ".join(f"{counts[s]} {s}" for s in counts if counts[s]) or "bulgu yok"

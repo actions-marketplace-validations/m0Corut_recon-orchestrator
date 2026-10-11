@@ -58,16 +58,17 @@ def parse_nuclei_jsonl(stdout: str, severities: str = "") -> list[Finding]:
         ))
     if not findings:
         findings.append(Finding(
-            NAME, "nuclei: eşleşme yok", "info",
-            f"{severities or 'seçili'} seviyesinde bulgu yok.",
+            NAME, "nuclei: no matches", "info",
+            f"No findings at {severities or 'selected'} severity.",
             rule_id=f"{NAME}.nuclei.no-match",
+            params={"severities": severities or "selected"},
         ))
     return findings
 
 
 def run(target: str, ctx: dict) -> list[Finding]:
     if not ensure_image(IMAGE):
-        return [Finding(NAME, "nuclei imajı indirilemedi", "info", IMAGE,
+        return [Finding(NAME, "nuclei image unavailable", "info", IMAGE,
                         rule_id=f"{NAME}.image-unavailable")]
 
     severities = ctx.get("nuclei_severity", "low,medium,high,critical")

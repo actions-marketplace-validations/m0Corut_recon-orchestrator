@@ -5,6 +5,7 @@ import json
 from datetime import datetime, timezone
 
 from .findings import SEVERITIES, ScanResult
+from .i18n import DEFAULT_LANG, localize, ui
 
 _SARIF_LEVEL = {
     "info": "note", "low": "note", "medium": "warning",
@@ -12,51 +13,61 @@ _SARIF_LEVEL = {
 }
 
 
-def to_markdown(result: ScanResult, meta: dict) -> str:
+def to_markdown(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG) -> str:
     counts = result.counts()
+    t = ui(lang)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    summary = ", ".join(f"{counts[s]} {s}" for s in reversed(SEVERITIES) if counts[s])
+    if not result.findings:
+        summary = f"({t['no_findings']})"
     lines = [
-        f"# Güvenlik Tarama Raporu — {result.target}",
+        f"# {t['report_title']} — {result.target}",
         "",
-        f"- **Tarih:** {now}",
-        f"- **Modüller:** {', '.join(meta.get('modules', []))}",
-        "- **Özet:** "
-        + ", ".join(f"{counts[s]} {s}" for s in reversed(SEVERITIES) if counts[s])
-        + (" (bulgu yok)" if not result.findings else ""),
+        f"- **{t['date']}:** {now}",
+        f"- **{t['modules']}:** {', '.join(meta.get('modules', []))}",
+        f"- **{t['summary']}:** {summary}",
         "",
-        "> ⚠️ Yalnızca yetkili olduğunuz sistemlerde kullanın. Bu rapor hassas "
-        "bilgi içerebilir; herkese açık paylaşmayın.",
+        f"> {t['warning']}",
         "",
-        "## Bulgular",
+        f"## {t['findings']}",
         "",
-        "| Önem | Modül | Başlık |",
+        f"| {t['severity']} | {t['module']} | {t['title_col']} |",
         "|------|-------|--------|",
     ]
     for f in result.sorted():
-        lines.append(f"| {f.severity.upper()} | {f.module} | {f.title} |")
-    lines += ["", "## Detaylar", ""]
+        title, _, _ = localize(f, lang)
+        lines.append(f"| {f.severity.upper()} | {f.module} | {title} |")
+    lines += ["", f"## {t['details']}", ""]
     for f in result.sorted():
-        lines.append(f"### [{f.severity.upper()}] {f.title}")
-        lines.append(f"- **Modül:** {f.module}")
-        lines.append(f"- **Açıklama:** {f.detail}")
+        title, detail, rec = localize(f, lang)
+        lines.append(f"### [{f.severity.upper()}] {title}")
+        lines.append(f"- **{t['module']}:** {f.module}")
+        lines.append(f"- **{t['detail']}:** {detail}")
         if f.evidence:
-            lines.append(f"- **Kanıt:** `{f.evidence}`")
-        if f.recommendation:
-            lines.append(f"- **Öneri:** {f.recommendation}")
+            lines.append(f"- **{t['evidence']}:** `{f.evidence}`")
+        if rec:
+            lines.append(f"- **{t['recommendation']}:** {rec}")
         lines.append("")
     if result.errors:
-        lines += ["## Hatalar", ""]
+        lines += [f"## {t['errors']}", ""]
         lines += [f"- {e}" for e in result.errors]
     return "\n".join(lines)
 
 
-def to_json(result: ScanResult, meta: dict) -> str:
+def to_json(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG) -> str:
+    findings = []
+    for f in result.sorted():
+        title, detail, rec = localize(f, lang)
+        d = f.to_dict()
+        d["title"], d["detail"], d["recommendation"] = title, detail, rec
+        findings.append(d)
     return json.dumps({
         "target": result.target,
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "lang": lang,
         "meta": meta,
         "counts": result.counts(),
-        "findings": [f.to_dict() for f in result.sorted()],
+        "findings": findings,
         "errors": result.errors,
     }, indent=2, ensure_ascii=False)
 
@@ -64,20 +75,22 @@ def to_json(result: ScanResult, meta: dict) -> str:
 INFO_URI = "https://github.com/m0Corut/recon-orchestrator"
 
 
-def to_sarif(result: ScanResult, meta: dict) -> str:
+def to_sarif(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG) -> str:
     rules: dict[str, dict] = {}
     results: list[dict] = []
     for f in result.findings:
+        title, detail, _ = localize(f, lang)
         rules.setdefault(f.rule_id, {
             "id": f.rule_id,
             "name": f.rule_id,
-            "shortDescription": {"text": f.title},
+            "shortDescription": {"text": title},
             "defaultConfiguration": {"level": _SARIF_LEVEL.get(f.severity, "note")},
         })
         results.append({
             "ruleId": f.rule_id,
             "level": _SARIF_LEVEL.get(f.severity, "note"),
-            "message": {"text": f.detail + (f"\nKanıt: {f.evidence}" if f.evidence else "")},
+            "message": {"text": detail + (f"\n{ui(lang)['evidence']}: {f.evidence}"
+                                          if f.evidence else "")},
             "partialFingerprints": {"reconFingerprint/v1": f.fingerprint},
             "locations": [{
                 "physicalLocation": {

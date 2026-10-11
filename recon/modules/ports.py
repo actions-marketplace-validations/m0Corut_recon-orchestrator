@@ -19,16 +19,16 @@ IMAGE = "instrumentisto/nmap"
 # nmap service names that mean "port responds but the service is unconfirmed"
 UNIDENTIFIED = {"", "tcpwrapped", "unknown", "unidentified"}
 
-# port -> (severity, note) for ports worth calling out when exposed
+# port -> severity for ports worth calling out when exposed
 NOTABLE = {
-    22: ("low", "SSH internete açık — IP allowlist / VPN arkasına almayı değerlendir"),
-    23: ("high", "Telnet açık — şifresiz, kapat"),
-    3389: ("medium", "RDP açık — brute force hedefi, VPN arkasına al"),
-    3306: ("high", "MySQL internete açık — yalnız iç ağa bağla"),
-    5432: ("high", "PostgreSQL internete açık — yalnız iç ağa bağla"),
-    6379: ("high", "Redis internete açık — yetkisiz erişim riski"),
-    27017: ("high", "MongoDB internete açık — yetkisiz erişim riski"),
-    9200: ("high", "Elasticsearch internete açık — veri sızıntısı riski"),
+    22: "low",      # SSH
+    23: "high",     # Telnet (cleartext)
+    3389: "medium",  # RDP
+    3306: "high",   # MySQL
+    5432: "high",   # PostgreSQL
+    6379: "high",   # Redis
+    27017: "high",  # MongoDB
+    9200: "high",   # Elasticsearch
 }
 
 
@@ -66,28 +66,34 @@ def parse_nmap_xml(xml_text: str) -> list[Finding]:
         label = _svc_label(service, product, version)
         open_ports.append(f"{port}/{service}")
         if port in NOTABLE:
-            sev, note = NOTABLE[port]
             if service in UNIDENTIFIED:
                 # Port responds but nmap could not confirm the service (often a
-                # firewall answering every port). Do not claim it is the DB/etc.;
-                # report the open port without the service-specific severity.
+                # firewall answering every port). Do not claim it is the DB/etc.
                 findings.append(Finding(
-                    NAME, f"Açık port (servis doğrulanamadı): {port}/{proto}", "info",
-                    f"{port} portu yanıt veriyor ama servis doğrulanamadı "
-                    f"(nmap: {service or 'belirsiz'}). Güvenlik duvarı tüm portlara "
-                    f"yanıt veriyor olabilir.",
+                    NAME, f"Open port (service unconfirmed): {port}/{proto}", "info",
+                    f"{port} responds but the service is unconfirmed "
+                    f"(nmap: {service or 'unknown'}). A firewall may be answering "
+                    f"every port.",
                     evidence=f"{port}/{proto} open {label}".strip(),
                     rule_id=f"{NAME}.open-unconfirmed",
+                    msg_key=f"{NAME}.open-unconfirmed",
+                    params={"port": port, "proto": proto,
+                            "service": service or "unknown"},
                 ))
             else:
                 findings.append(Finding(
-                    NAME, f"Açık servis: {port}/{service}", sev, note,
+                    NAME, f"Exposed service: {port}/{service}", NOTABLE[port],
+                    "This service is reachable from the internet.",
                     evidence=f"{port}/{proto} open {label}".strip(),
+                    recommendation="Restrict access (VPN/allowlist/firewall) or bind "
+                                   "to the internal network only.",
                     rule_id=f"{NAME}.exposed-{service}",
+                    msg_key=f"{NAME}.exposed",
+                    params={"port": port, "service": service},
                 ))
     if open_ports:
         findings.append(Finding(
-            NAME, "Açık portlar", "info", "Tespit edilen açık portlar.",
+            NAME, "Open ports", "info", "Open ports detected.",
             evidence="; ".join(open_ports),
             rule_id=f"{NAME}.open-ports",
         ))
@@ -97,7 +103,7 @@ def parse_nmap_xml(xml_text: str) -> list[Finding]:
 def run(target: str, ctx: dict) -> list[Finding]:
     host = _host(target)
     if not ensure_image(IMAGE):
-        return [Finding(NAME, "nmap imajı indirilemedi", "info", IMAGE,
+        return [Finding(NAME, "nmap image unavailable", "info", IMAGE,
                         rule_id=f"{NAME}.image-unavailable")]
     res = docker_run(
         IMAGE,

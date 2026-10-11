@@ -33,12 +33,13 @@ def run(target: str, ctx: dict) -> list[Finding]:
             else:
                 sev, slug = "medium", "permissive-acao"
             findings.append(Finding(
-                NAME, "CORS yanlış yapılandırması", sev,
-                f"Sunucu Origin '{origin}' değerini yansıtıyor "
-                f"(ACAO={acao}, credentials={acac or 'yok'}).",
+                NAME, "CORS misconfiguration", sev,
+                f"Server reflects Origin '{origin}' "
+                f"(ACAO={acao}, credentials={acac or 'none'}).",
                 evidence=f"Origin: {origin} -> ACAO: {acao}",
-                recommendation="İzin verilen origin'leri allowlist ile sınırla; "
-                               "'*' + credentials birlikte kullanma.",
+                recommendation="Restrict allowed origins to an allowlist; "
+                               "never combine '*' with credentials.",
                 rule_id=f"{NAME}.{slug}",
+                params={"origin": origin, "acao": acao},
             ))
     return findings

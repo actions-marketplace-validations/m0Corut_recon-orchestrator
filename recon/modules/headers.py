@@ -1,7 +1,8 @@
 """Security-header and cookie-flag checks. Pure-Python (requests), no Docker.
 
 Parsing/analysis lives in `analyze()` which takes plain data (a headers dict)
-so it can be unit-tested without any network access.
+so it can be unit-tested without any network access. Finding text is authored in
+English; Turkish comes from recon/i18n.py keyed by rule_id/msg_key.
 """
 from __future__ import annotations
 
@@ -12,45 +13,47 @@ from ..findings import Finding
 NAME = "headers"
 NEEDS_DOCKER = False
 
-# header -> (rule slug, severity, why it matters)
+# header -> (rule slug, severity, english why)
 EXPECTED = {
     "Strict-Transport-Security": ("missing-hsts", "medium",
-        "HSTS yok: protokol düşürme / MITM riski"),
+        "No HSTS: protocol-downgrade / MITM risk"),
     "Content-Security-Policy": ("missing-csp", "medium",
-        "CSP yok: XSS etki alanı genişler"),
+        "No CSP: wider XSS impact"),
     "X-Content-Type-Options": ("missing-nosniff", "low",
-        "nosniff yok: MIME sniffing riski"),
+        "No nosniff: MIME sniffing risk"),
     "X-Frame-Options": ("missing-xfo", "low",
-        "yok: clickjacking riski (CSP frame-ancestors yoksa)"),
+        "Missing: clickjacking risk (if no CSP frame-ancestors)"),
     "Referrer-Policy": ("missing-referrer-policy", "info",
-        "yok: referrer üzerinden bilgi sızıntısı"),
+        "Missing: referrer information leak"),
     "Permissions-Policy": ("missing-permissions-policy", "info",
-        "yok: tarayıcı özellikleri kısıtlanmamış"),
+        "Missing: browser features not restricted"),
 }
 
 
 def analyze(headers: dict, status: int, url: str) -> list[Finding]:
-    """Pure analysis of a response's headers. `headers` is case-insensitive-ish:
-    we lowercase keys here, so pass the raw dict."""
+    """Pure analysis of a response's headers. Pass the raw header dict."""
     present = {k.lower(): v for k, v in headers.items()}
     findings: list[Finding] = []
 
     for header, (slug, sev, why) in EXPECTED.items():
         if header.lower() not in present:
             findings.append(Finding(
-                NAME, f"Güvenlik başlığı eksik: {header}", sev, why,
+                NAME, f"Missing security header: {header}", sev, why,
                 evidence=f"GET {url} -> {status}",
-                recommendation=f"{header} yanıt başlığını ekle.",
+                recommendation=f"Add the {header} response header.",
                 rule_id=f"{NAME}.{slug}",
             ))
 
     for h in ("Server", "X-Powered-By", "X-AspNet-Version"):
         if h.lower() in present:
+            val = present[h.lower()]
             findings.append(Finding(
-                NAME, f"Teknoloji ifşası: {h}", "info",
-                f"{h}: {present[h.lower()]}",
-                recommendation=f"{h} başlığını kaldır/genelleştir.",
+                NAME, f"Technology disclosure: {h}", "info",
+                f"{h}: {val}",
+                recommendation=f"Remove/generalize the {h} header.",
                 rule_id=f"{NAME}.tech-disclosure-{h.lower()}",
+                msg_key=f"{NAME}.tech-disclosure",
+                params={"header": h, "value": val},
             ))
 
     set_cookie = present.get("set-cookie", "")
@@ -61,11 +64,12 @@ def analyze(headers: dict, status: int, url: str) -> list[Finding]:
                     ("SameSite", "samesite")) if key not in low]
         if missing:
             findings.append(Finding(
-                NAME, "Cookie bayrağı eksik", "low",
-                "Eksik: " + ", ".join(missing),
-                evidence="Set-Cookie başlığında bayrak eksik",
-                recommendation="Session cookie'lerine Secure + HttpOnly + SameSite ekle.",
+                NAME, "Missing cookie flag", "low",
+                "Missing: " + ", ".join(missing),
+                evidence="Set-Cookie header missing a flag",
+                recommendation="Set Secure + HttpOnly + SameSite on session cookies.",
                 rule_id=f"{NAME}.cookie-flags",
+                params={"missing": ", ".join(missing)},
             ))
     return findings
 
@@ -75,7 +79,8 @@ def run(target: str, ctx: dict) -> list[Finding]:
         r = requests.get(target, timeout=ctx.get("http_timeout", 15),
                          allow_redirects=True)
     except Exception as e:
-        return [Finding(NAME, "HTTP isteği başarısız", "info",
-                        f"{target} alınamadı: {e}",
-                        rule_id=f"{NAME}.request-failed")]
+        return [Finding(NAME, "HTTP request failed", "info",
+                        f"Could not fetch {target}: {e}",
+                        rule_id=f"{NAME}.request-failed",
+                        params={"target": target, "error": str(e)})]
     return analyze(dict(r.headers), r.status_code, r.url)
