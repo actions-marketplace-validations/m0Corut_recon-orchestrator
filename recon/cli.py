@@ -115,6 +115,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--resume", action="store_true",
                    help="Reuse modules finished by an interrupted run of the same "
                         "scan instead of re-running them")
+    p.add_argument("--idor-url", action="append", default=None, metavar="URL",
+                   help="URL with a numeric id for the idor module to test "
+                        "(repeatable); e.g. 'https://site/invoice/1001'")
     p.add_argument("--crawl-headless", action="store_true",
                    help="crawl/--dast: drive a headless browser so single-page-app "
                         "endpoints are discovered (needs Chromium; all-in-one image has it)")
@@ -241,6 +244,7 @@ def _scan_one(target: str, settings: dict) -> tuple[int, list[str]]:
         ctx.extra["spec"] = settings["spec"]
     ctx.dast = bool(settings.get("dast"))
     ctx.crawl_headless = bool(settings.get("crawl_headless"))
+    ctx.idor_urls = settings.get("idor_urls")
     opts = settings["options"]
     for field in ("top_ports", "nuclei_tags", "nuclei_severity", "content_threads",
                   "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout",
@@ -513,6 +517,7 @@ def main(argv: list[str] | None = None) -> int:
         "spec": args.spec,
         "dast": args.dast,
         "crawl_headless": args.crawl_headless,
+        "idor_urls": args.idor_url,
         "github_issues": args.github_issues,
         "issue_min_severity": args.issue_min_severity,
         "close_resolved": args.close_resolved,

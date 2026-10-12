@@ -258,6 +258,9 @@ payload. Messages contain titles and rule ids, never evidence.
 | `openapi` | an OpenAPI/Swagger spec | Whether endpoints the spec marks as requiring authentication are reachable without it |
 | `mail` | `[dns]` extra | Whether your mail server offers STARTTLS, and whether MTA-STS/TLS-RPT are configured |
 | `discover` | nothing (`[dns]` extra recommended; subfinder optional) | Subdomain inventory from Certificate Transparency (crt.sh, Cert Spotter) and subfinder, live web hosts, and dangling CNAMEs that may allow a subdomain takeover. Opt-in via `--discover` |
+| `crawl` | katana | Maps the attack surface: endpoints and query parameters, parsing linked JS; `--crawl-headless` drives a browser for single-page apps. Opt-in |
+| `cms` | nothing | Detects the CMS (WordPress/Joomla/Drupal) and version, and for WordPress checks REST user enumeration, an exposed debug log, xmlrpc.php and readme. Opt-in (`-m cms`) |
+| `idor` | nothing (`--auth-header` recommended) | Heuristic IDOR / broken object-level authorization probe: fetches a neighbouring object id and flags when a distinct object comes back (read-only, GET only). Opt-in (`-m idor`) |
 
 Run `recon modules` any time to see this list with each module's current
 description.
@@ -275,6 +278,8 @@ description.
 --analyst anthropic           # optional AI executive summary (opt-in, needs an API key)
 --github-issues org/repo      # optional: file a GitHub issue per new finding
 --discover [--scan-discovered]  # subdomain inventory (+ scan each live host)
+-m cms,idor                    # CMS/WordPress checks and the IDOR probe (opt-in modules)
+--idor-url https://s/x/1001    # an id-bearing URL for the idor module to test
 --suppress-file ignore.yml    # accepted risks (default: .reconignore.yml)
 --notify-env RECON_WEBHOOK    # Slack/Discord/Telegram/webhook on NEW findings
 --resume                      # continue an interrupted scan; finished modules are reused
@@ -622,6 +627,9 @@ rule_id bulunur, kanıt asla bulunmaz.
 | `openapi` | bir OpenAPI/Swagger şeması | Şemanın kimlik doğrulama gerektirdiğini söylediği endpoint'lerin gerçekten kimliksiz erişilip erişilemediği |
 | `mail` | `[dns]` extra | Mail sunucunun STARTTLS sunup sunmadığı, MTA-STS/TLS-RPT'nin yapılandırılıp yapılandırılmadığı |
 | `discover` | hiçbir şey (`[dns]` extra önerilir; subfinder isteğe bağlı) | Sertifika şeffaflığı (crt.sh, Cert Spotter) ve subfinder ile alt alan adı envanteri, canlı web host'ları ve subdomain takeover'a açık sahipsiz CNAME'ler. `--discover` ile açılır |
+| `crawl` | katana | Saldırı yüzeyini haritalar: endpoint ve sorgu parametreleri, bağlı JS'i ayrıştırır; SPA'lar için `--crawl-headless` tarayıcı sürer. Opt-in |
+| `cms` | hiçbir şey | CMS'i (WordPress/Joomla/Drupal) ve sürümü tespit eder; WordPress için REST kullanıcı sayımı, açık debug log, xmlrpc.php ve readme kontrolü. Opt-in (`-m cms`) |
+| `idor` | hiçbir şey (`--auth-header` önerilir) | Sezgisel IDOR / nesne düzeyi yetki taraması: komşu nesne id'sini getirip farklı bir nesne dönerse işaretler (salt-okunur, yalnızca GET). Opt-in (`-m idor`) |
 
 Bu listeyi ve her modülün güncel açıklamasını görmek için istediğin an
 `recon modules` çalıştır.
@@ -639,6 +647,8 @@ Bu listeyi ve her modülün güncel açıklamasını görmek için istediğin an
 --analyst anthropic           # opsiyonel AI yönetici özeti (opt-in, API anahtarı gerekir)
 --github-issues org/repo      # opsiyonel: her yeni bulgu için bir GitHub issue aç
 --discover [--scan-discovered]  # alt alan adı envanteri (+ her canlı host'u tara)
+-m cms,idor                    # CMS/WordPress kontrolleri ve IDOR taraması (opt-in modüller)
+--idor-url https://s/x/1001    # idor modülünün test edeceği id içeren URL
 --suppress-file ignore.yml    # kabul edilen riskler (varsayılan: .reconignore.yml)
 --notify-env RECON_WEBHOOK    # YENİ bulguda Slack/Discord/Telegram/webhook
 --resume                      # yarıda kalan taramayı sürdür; biten modüller yeniden çalışmaz

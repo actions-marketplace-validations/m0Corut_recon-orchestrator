@@ -7,6 +7,14 @@ Format [Keep a Changelog](https://keepachangelog.com/) tabanlı; sürümleme
 ## [Unreleased]
 
 ### Added
+- `cms` modülü: CMS tespiti (WordPress/Joomla/Drupal) + sürüm; WordPress için
+  REST kullanıcı sayımı, açık debug log, xmlrpc.php ve readme kontrolleri
+  (salt-okunur, opt-in). Gerçek WordPress'e karşı doğrulandı.
+- `idor` modülü: sezgisel IDOR / nesne düzeyi yetki taraması; komşu nesne
+  id'sini getirip farklı bir nesne dönerse "olası IDOR" (medium) işaretler.
+  Salt-okunur (GET), `--idor-url` ve `--auth-header` destekler (opt-in).
+
+### Added
 - `--crawl-headless`: crawl/`--dast` sırasında gerçek (başsız) tarayıcı sürerek
   tek-sayfa uygulamaların (SPA) çalışma anında oluşan endpoint'lerini keşfeder.
   Chromium gerektirir; all-in-one imajı içerir.

@@ -31,6 +31,7 @@ class ScanContext:
     crawl_max_urls: int = 500
     crawl_timeout: int = 300
     crawl_headless: bool = False
+    idor_urls: list[str] | None = None
     # authenticated (authz) module inputs
     auth_header: str | None = None
     auth_pages: list[str] | None = None
