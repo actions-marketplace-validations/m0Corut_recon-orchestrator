@@ -6,6 +6,17 @@ Format [Keep a Changelog](https://keepachangelog.com/) tabanlı; sürümleme
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-12
+
+### Fixed
+- `recon doctor`: araç durum sütunu hizalı (uzun araç adları, ör. `subfinder`,
+  satırı kaydırıyordu).
+
+### Changed
+- README kurulum bölümü 1.1.0'a göre güncellendi (PyPI önerilen yöntem, sabit
+  imaj etiketi, araç sürümleri, 1.0'dan yükseltme notu); PyPI proje sayfası bu
+  sürümle güncel README'yi gösterir.
+
 ## [1.1.0] - 2026-10-12
 
 ### Added
@@ -86,7 +97,8 @@ Format [Keep a Changelog](https://keepachangelog.com/) tabanlı; sürümleme
 - İlk sürüm: 6 modül (headers, cors, content, ports, tls, web), Markdown/JSON/
   SARIF rapor, `--authorized` yetki kapısı, `--fail-on` CI çıkış kodu.
 
-[Unreleased]: https://github.com/m0Corut/recon-orchestrator/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/m0Corut/recon-orchestrator/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/m0Corut/recon-orchestrator/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/m0Corut/recon-orchestrator/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/m0Corut/recon-orchestrator/releases/tag/v1.0.0
 [0.2.0]: https://github.com/m0Corut/recon-orchestrator/releases/tag/v0.2.0
