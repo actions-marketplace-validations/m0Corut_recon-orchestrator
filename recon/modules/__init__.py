@@ -31,35 +31,36 @@ class ModuleSpec:
 REGISTRY: dict[str, ModuleSpec] = {
     "headers": ModuleSpec(
         "headers", "recon.modules.headers", False, True,
-        "Güvenlik başlıkları, cookie bayrakları ve teknoloji ifşası"),
+        "Security headers, cookie flags, and technology disclosure"),
     "cors": ModuleSpec(
         "cors", "recon.modules.cors", False, True,
-        "CORS yanlış yapılandırması (Origin yansıması)"),
+        "CORS misconfiguration (Origin reflection)"),
     "content": ModuleSpec(
         "content", "recon.modules.content", False, True,
-        "Dizin/dosya keşfi (catch-all filtreli)"),
+        "Path/file discovery (catch-all filtered)"),
     "ports": ModuleSpec(
         "ports", "recon.modules.ports", True, True,
-        "Açık port/servis taraması (nmap)", tools=("nmap",)),
+        "Open port/service scan (nmap)", tools=("nmap",)),
     "tls": ModuleSpec(
         "tls", "recon.modules.tls", True, True,
-        "TLS yapılandırması: eski protokol/zayıf şifreleyici (testssl)",
+        "TLS configuration: old protocols/weak ciphers (testssl)",
         tools=("testssl",)),
     "web": ModuleSpec(
         "web", "recon.modules.web", True, True,
-        "Topluluk şablonlarıyla açık/teknoloji tespiti (nuclei)", tools=("nuclei",)),
+        "Known-issue/tech detection via community templates (nuclei)",
+        tools=("nuclei",)),
     "dns": ModuleSpec(
         "dns", "recon.modules.dns", False, False,
-        "DNS & e-posta güvenliği: SPF/DMARC/DKIM/CAA/MX (dnspython gerekir)"),
+        "DNS & email security: SPF/DMARC/DKIM/CAA/MX (needs dnspython)"),
     "authz": ModuleSpec(
         "authz", "recon.modules.authz", False, True,
-        "Giriş sonrası (salt-okunur) erişim kontrolü — kimlik bilgisi gerekir"),
+        "Authenticated, read-only access-control checks - needs credentials"),
     "openapi": ModuleSpec(
         "openapi", "recon.modules.openapi", False, True,
-        "OpenAPI/Swagger şema-güdümlü endpoint kapsamı (salt-okunur)"),
+        "OpenAPI/Swagger-driven endpoint coverage (read-only)"),
     "mail": ModuleSpec(
         "mail", "recon.modules.mail", False, True,
-        "SMTP/mail: STARTTLS, MTA-STS, TLS-RPT (kapsam korumalı, salt-okunur)"),
+        "SMTP/mail: STARTTLS, MTA-STS, TLS-RPT (scope-respecting, read-only)"),
 }
 
 # Default execution order: cheap pure-Python modules first, Docker ones after.

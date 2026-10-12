@@ -23,7 +23,7 @@ def resolve_modules(selected: Iterable[str] | str) -> list[str]:
         [m.strip() for m in selected.split(",") if m.strip()]
     unknown = [m for m in names if m not in REGISTRY]
     if unknown:
-        raise ValueError(f"bilinmeyen modül(ler): {', '.join(unknown)}")
+        raise ValueError(f"unknown module(s): {', '.join(unknown)}")
     return names
 
 
@@ -63,8 +63,8 @@ def run_scan(
         host = urlparse(target).hostname or target
         if not scope.allows(host):
             result.errors.append(
-                f"scope: hedef '{host}' allowlist dışında, tarama iptal edildi.")
-            emit("error", f"scope: {host} allowlist dışında")
+                f"scope: target '{host}' is outside the allowlist, scan aborted.")
+            emit("error", f"scope: {host} is outside the allowlist")
             return result
 
     runner = getattr(ctx, "runner", None)
@@ -75,11 +75,11 @@ def run_scan(
             if runner is not None:
                 if not all(runner.can_run(t) for t in spec.tools):
                     result.errors.append(
-                        f"{name}: gerekli araç(lar) yok ({runner.name}), atlandı.")
+                        f"{name}: required tool(s) unavailable ({runner.name}), skipped.")
                     emit("skip", name)
                     continue
             elif not docker_ok:
-                result.errors.append(f"{name}: Docker çalışmıyor, atlandı.")
+                result.errors.append(f"{name}: Docker not available, skipped.")
                 emit("skip", name)
                 continue
         runnable.append(name)
@@ -91,7 +91,7 @@ def run_scan(
         start = time.monotonic()
         try:
             found = REGISTRY[name].load().run(target, ctx)
-        except Exception as e:  # noqa: BLE001 - bir modül hatası taramayı durdurmasın
+        except Exception as e:  # noqa: BLE001 - one module's failure must not abort the scan
             with lock:
                 result.errors.append(f"{name}: {e}")
             emit("error", f"{name}: {e}")

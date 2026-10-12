@@ -113,6 +113,34 @@ UI: dict[str, dict[str, str]] = {
         "baseline": "Baseline comparison", "new": "new", "resolved": "resolved",
         "new_findings": "New since baseline",
         "analyst": "Analyst summary (automated, unverified)",
+        # CLI chrome
+        "banner_warning": "WARNING: this tool sends real requests to the "
+            "target. Use it only on systems you OWN or have WRITTEN "
+            "AUTHORIZATION to test. Unauthorized scanning is a crime in most "
+            "jurisdictions. You are fully responsible.",
+        "err": "ERROR", "err_need_authorized": "--authorized flag is required. "
+            "The scan will not start without confirming you are authorized.",
+        "err_no_target": "no target given (positional argument or config targets).",
+        "err_unknown_modules": "unknown module(s)",
+        "err_unknown_formats": "unknown format(s)",
+        "err_config": "config",
+        "running": "running...", "skipped": "skipped.",
+        "scan_done": "Done. Report:", "no_findings_short": "no findings",
+        "baseline_line": "baseline: {new} new, {resolved} resolved",
+        "available_modules": "Available modules:",
+        "docker_tool": "docker/tool", "pure_python": "pure-python",
+        "active": "active", "passive": "passive",
+        "doctor_title": "recon doctor",
+        "docker_label": "Docker", "native_tools_label": "Native tools:",
+        "optional_packages_label": "Optional packages:",
+        "present": "present", "missing": "MISSING",
+        "wrote_template": "Wrote example config:",
+        "analyst_generating": "Generating analyst summary",
+        "analyst_skipped_no_key": "missing; analyst summary skipped.",
+        "analyst_error": "Analyst error:",
+        "github_result": "GitHub: {created} issue(s) opened, {closed} closed.",
+        "github_error": "GitHub issue error:",
+        "github_skipped_no_token": "GITHUB_TOKEN missing; issue creation skipped.",
     },
     "tr": {
         "report_title": "Güvenlik Tarama Raporu",
@@ -127,8 +155,58 @@ UI: dict[str, dict[str, str]] = {
         "baseline": "Önceki tarama ile karşılaştırma", "new": "yeni",
         "resolved": "çözülen", "new_findings": "Önceki taramaya göre yeni",
         "analyst": "Analist özeti (otomatik, doğrulanmamış)",
+        # CLI chrome
+        "banner_warning": "UYARI: Bu araç hedefe gerçek istekler gönderir. "
+            "Yalnızca SAHİBİ OLDUĞUNUZ veya YAZILI İZNİNİZ olan sistemlerde "
+            "kullanın. Yetkisiz tarama çoğu ülkede suçtur. Sorumluluk tamamen "
+            "size aittir.",
+        "err": "HATA", "err_need_authorized": "--authorized bayrağı gerekli. "
+            "Yetkiniz olduğunu onaylamadan tarama başlatılmaz.",
+        "err_no_target": "hedef verilmedi (pozisyonel argüman ya da config targets).",
+        "err_unknown_modules": "bilinmeyen modül(ler)",
+        "err_unknown_formats": "bilinmeyen biçim(ler)",
+        "err_config": "config",
+        "running": "çalışıyor...", "skipped": "atlandı.",
+        "scan_done": "Bitti. Rapor:", "no_findings_short": "bulgu yok",
+        "baseline_line": "baseline: {new} yeni, {resolved} çözülen",
+        "available_modules": "Mevcut modüller:",
+        "docker_tool": "docker/araç", "pure_python": "saf-python",
+        "active": "aktif", "passive": "pasif",
+        "doctor_title": "recon doctor",
+        "docker_label": "Docker", "native_tools_label": "Native araçlar:",
+        "optional_packages_label": "Opsiyonel paketler:",
+        "present": "var", "missing": "YOK",
+        "wrote_template": "Örnek yapılandırma yazıldı:",
+        "analyst_generating": "Analist özeti üretiliyor",
+        "analyst_skipped_no_key": "yok; analist özeti atlandı.",
+        "analyst_error": "Analist hatası:",
+        "github_result": "GitHub: {created} issue açıldı, {closed} kapatıldı.",
+        "github_error": "GitHub issue hatası:",
+        "github_skipped_no_token": "GITHUB_TOKEN yok; issue oluşturma atlandı.",
     },
 }
+
+
+# `recon modules` descriptions in Turkish, keyed by module name. English comes
+# from each ModuleSpec.description in recon/modules/__init__.py.
+MODULE_DESC_TR: dict[str, str] = {
+    "headers": "Güvenlik başlıkları, cookie bayrakları ve teknoloji ifşası",
+    "cors": "CORS yanlış yapılandırması (Origin yansıması)",
+    "content": "Dizin/dosya keşfi (catch-all filtreli)",
+    "ports": "Açık port/servis taraması (nmap)",
+    "tls": "TLS yapılandırması: eski protokol/zayıf şifreleyici (testssl)",
+    "web": "Topluluk şablonlarıyla açık/teknoloji tespiti (nuclei)",
+    "dns": "DNS & e-posta güvenliği: SPF/DMARC/DKIM/CAA/MX (dnspython gerekir)",
+    "authz": "Giriş sonrası (salt-okunur) erişim kontrolü — kimlik bilgisi gerekir",
+    "openapi": "OpenAPI/Swagger şema-güdümlü endpoint kapsamı (salt-okunur)",
+    "mail": "SMTP/mail: STARTTLS, MTA-STS, TLS-RPT (kapsam korumalı, salt-okunur)",
+}
+
+
+def module_description(name: str, english: str, lang: str) -> str:
+    if lang == "tr":
+        return MODULE_DESC_TR.get(name, english)
+    return english
 
 
 def ui(lang: str) -> dict[str, str]:

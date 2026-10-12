@@ -55,4 +55,4 @@ def summarize(view: list[dict], provider: str, *, api_key: str,
         from .anthropic import call as anthropic_call
         return anthropic_call(SYSTEM_PROMPT, prompt, api_key=api_key,
                               model=model or "claude-sonnet-4-6")
-    raise ValueError(f"bilinmeyen analyst sağlayıcı: {provider}")
+    raise ValueError(f"unknown analyst provider: {provider}")

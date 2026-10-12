@@ -2,6 +2,10 @@
 
 Thin wrapper: parse args, build a ScanContext, delegate to engine.run_scan,
 then write the reports. All orchestration lives in recon/engine.py.
+
+Argparse help text (--help) is always English, since it's static reference
+text. Runtime messages (banner, progress, errors) follow --lang, defaulting
+to English, via recon.i18n.ui().
 """
 from __future__ import annotations
 
@@ -22,6 +26,7 @@ from .diff import (
 from .dockerutil import docker_available
 from .engine import resolve_modules, run_scan
 from .findings import SEVERITY_RANK
+from .i18n import DEFAULT_LANG, module_description, ui
 from .modules import REGISTRY
 from .ratelimit import RateLimiter
 from .report import to_json, to_markdown, to_sarif
@@ -36,11 +41,15 @@ _RENDERERS = {
     "html": ("report.html", to_html),
 }
 
-BANNER_WARNING = (
-    "UYARI: Bu araç hedefe gerçek istekler gönderir. Yalnızca SAHİBİ OLDUĞUNUZ "
-    "veya YAZILI İZNİNİZ olan sistemlerde kullanın. Yetkisiz tarama çoğu ülkede "
-    "suçtur. Sorumluluk tamamen size aittir."
-)
+
+def _peek_lang(argv: list[str]) -> str:
+    """Read --lang from argv before full parsing, for pre-scan messages."""
+    for i, a in enumerate(argv):
+        if a == "--lang" and i + 1 < len(argv):
+            return argv[i + 1]
+        if a.startswith("--lang="):
+            return a.split("=", 1)[1]
+    return DEFAULT_LANG
 
 
 def _normalize_target(t: str) -> str:
@@ -52,71 +61,72 @@ def _normalize_target(t: str) -> str:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="recon",
-        description="Yetkili güvenlik taraması için araç orkestratörü "
-                    "(nmap/nuclei/testssl + yerleşik kontroller).",
+        description="Tool orchestrator for authorized security testing "
+                    "(nmap/nuclei/testssl + built-in checks).",
     )
     p.add_argument("target", nargs="?", default=None,
-                   help="Hedef URL veya alan adı (config targets kullanılacaksa opsiyonel)")
+                   help="Target URL or domain (optional if config targets is used)")
     p.add_argument("-c", "--config", default=None,
-                   help="YAML yapılandırma dosyası (recon.yaml)")
+                   help="YAML config file (recon.yaml)")
     p.add_argument("-m", "--modules", default=None,
-                   help=f"Virgülle modül listesi veya 'all'. Seçenekler: {', '.join(REGISTRY)}")
+                   help=f"Comma-separated module list or 'all'. Options: {', '.join(REGISTRY)}")
     p.add_argument("-o", "--output-dir", default=None,
-                   help="Rapor çıktı dizini (varsayılan: recon_runs)")
+                   help="Report output directory (default: recon_runs)")
     p.add_argument("--rate", type=int, default=None,
-                   help="Aktif araçlar için istek/sn sınırı (varsayılan: 20)")
-    p.add_argument("--wordlist", help="content modülü için kelime listesi dosyası")
+                   help="Requests/sec cap for active tools (default: 20)")
+    p.add_argument("--wordlist", help="Wordlist file for the content module")
     p.add_argument("--authorized", action="store_true",
-                   help="Hedefi test etmeye yetkili olduğunuzu onaylar (zorunlu)")
+                   help="Confirms you are authorized to test the target (required)")
     p.add_argument("-q", "--quiet", action="store_true",
-                   help="İlerleme çıktısını bastır (sadece özet ve hatalar)")
+                   help="Suppress progress output (summary and errors only)")
     p.add_argument("--fail-on", default=None,
-                   help="Bu önem seviyesi+ bulgu varsa çıkış kodu 2 "
+                   help="Exit code 2 if any finding reaches this severity "
                         "(info|low|medium|high|critical)")
     p.add_argument("--lang", default=None, choices=["en", "tr"],
-                   help="Rapor dili (varsayılan: en)")
+                   help="Report language (default: en)")
     p.add_argument("--scope", default=None,
-                   help="Ek izinli host'lar (virgülle; *.ornek.com destekli). "
-                        "Varsayılan: sadece hedef host.")
+                   help="Extra allowed hosts (comma-separated; *.example.com "
+                        "supported). Default: target host only.")
     p.add_argument("--allow-private", action="store_true",
-                   help="Özel/loopback adreslere izin ver (iç sistemler için)")
+                   help="Allow private/loopback addresses (for internal systems)")
     p.add_argument("--baseline", default=None,
-                   help="Önceki report.json ya da run dizini; yeni/çözülen bulgular "
-                        "karşılaştırılır")
+                   help="Previous report.json or run directory to diff "
+                        "new/resolved findings against")
     p.add_argument("--no-auto-baseline", action="store_true",
-                   help="Aynı host için en son önceki çalıştırmayı otomatik baz alma")
+                   help="Don't automatically use the most recent previous "
+                        "run for this host as a baseline")
     p.add_argument("--fail-on-new", default=None,
-                   help="Bu önem seviyesi+ YENİ bulgu varsa çıkış kodu 2")
+                   help="Exit code 2 if a NEW finding reaches this severity")
     p.add_argument("--jobs", type=int, default=None,
-                   help="Aynı anda çalışacak modül sayısı (varsayılan: tümü)")
+                   help="Max concurrent modules (default: all)")
     p.add_argument("--serial", action="store_true",
-                   help="Modülleri paralel yerine sırayla çalıştır")
+                   help="Run modules sequentially instead of in parallel")
     p.add_argument("--format", default=None,
-                   help="Rapor biçimleri (virgülle): md,json,sarif,html "
-                        "(varsayılan: hepsi)")
+                   help="Report formats (comma-separated): md,json,sarif,html "
+                        "(default: all)")
     p.add_argument("--runner", default="auto", choices=["auto", "docker", "native"],
-                   help="Dış araçlar nasıl çalışsın (varsayılan: auto)")
+                   help="How external tools are executed (default: auto)")
     p.add_argument("--auth-header", default=None,
-                   help="authz için oturum başlığı (örn. 'Cookie: session=...')")
+                   help="Session header for authz (e.g. 'Cookie: session=...')")
     p.add_argument("--auth-header-env", default=None,
-                   help="Oturum başlığını bu ortam değişkeninden oku (daha güvenli)")
+                   help="Read the session header from this env var (safer)")
     p.add_argument("--auth-page", action="append", default=None,
-                   help="Giriş gerektiren yol (tekrarlanabilir); authz bunları test eder")
+                   help="A path requiring login (repeatable); authz tests these")
     p.add_argument("--spec", default=None,
-                   help="OpenAPI/Swagger şeması URL/yolu (openapi modülü için)")
+                   help="OpenAPI/Swagger spec URL/path (for the openapi module)")
     p.add_argument("--github-issues", default=None, metavar="OWNER/REPO",
-                   help="Yeni bulgular için bu repoda issue aç (GITHUB_TOKEN gerekir)")
+                   help="Open an issue in this repo for new findings (needs GITHUB_TOKEN)")
     p.add_argument("--issue-min-severity", default="high",
-                   help="Issue açılacak asgari önem (varsayılan: high)")
+                   help="Minimum severity to open an issue for (default: high)")
     p.add_argument("--close-resolved", action="store_true",
-                   help="Çözülen bulguların issue'larını kapat")
+                   help="Close issues for findings that are now resolved")
     p.add_argument("--analyst", default=None, choices=["openai", "anthropic"],
-                   help="Opsiyonel: bulguları LLM ile özetle (API anahtarı env'den)")
-    p.add_argument("--analyst-model", default=None, help="Analist modeli")
+                   help="Optional: summarize findings with an LLM (API key from env)")
+    p.add_argument("--analyst-model", default=None, help="Analyst model name")
     p.add_argument("--analyst-base-url", default=None,
-                   help="OpenAI-uyumlu uç nokta (yerel modeller için)")
+                   help="OpenAI-compatible endpoint (for local models)")
     p.add_argument("--analyst-include-evidence", action="store_true",
-                   help="Analiste kanıt metnini de gönder (varsayılan: gönderme)")
+                   help="Also send evidence text to the analyst (default: don't)")
     p.add_argument("-v", "--version", action="version",
                    version=f"recon-orchestrator {__version__}")
     return p
@@ -147,7 +157,6 @@ def _run_diff_command(argv: list[str]) -> int:
     """`recon diff <baseline.json> <current.json>` — compare two reports."""
     import argparse as _ap
 
-    from .diff import DiffResult, fingerprints_from_report
     p = _ap.ArgumentParser(prog="recon diff")
     p.add_argument("baseline")
     p.add_argument("current")
@@ -163,16 +172,16 @@ def _run_diff_command(argv: list[str]) -> int:
     for f in sorted(new, key=lambda x: x.get("severity", "")):
         print(f"  + [{f.get('severity','?').upper()}] {f.get('rule_id','?')} "
               f"{f.get('title','')}")
-    _ = DiffResult  # keep import meaningful
     return 2 if new else 0
 
 
 def _scan_one(target: str, settings: dict) -> int:
     """Run a single target end to end; returns its exit code (0 ok, 2 gate hit)."""
+    t = ui(settings["lang"])
     try:
         selected = resolve_modules(settings["modules"])
     except ValueError as e:
-        print(f"HATA: {e}", file=sys.stderr)
+        print(f"{t['err']}: {e}", file=sys.stderr)
         return 1
 
     scope = Scope.for_target(target, extra=settings["scope"],
@@ -202,11 +211,11 @@ def _scan_one(target: str, settings: dict) -> int:
         if kind == "run":
             ran.append(msg)
             if not quiet:
-                print(f"[*] {target}: {msg} çalışıyor...", file=sys.stderr)
+                print(f"[*] {target}: {msg} {t['running']}", file=sys.stderr)
         elif kind == "done" and not quiet:
             print(f"[✓] {msg}", file=sys.stderr)
         elif kind == "skip" and not quiet:
-            print(f"[~] {msg}: atlandı.", file=sys.stderr)
+            print(f"[~] {msg}: {t['skipped']}", file=sys.stderr)
         elif kind == "error":
             print(f"[!] {msg}", file=sys.stderr)
 
@@ -228,17 +237,17 @@ def _scan_one(target: str, settings: dict) -> int:
         api_key = os.environ.get(env_key, "")
         base = settings.get("analyst_base_url")
         if not api_key and not base:
-            print(f"[!] {env_key} yok; analist özeti atlandı.", file=sys.stderr)
+            print(f"[!] {env_key} {t['analyst_skipped_no_key']}", file=sys.stderr)
         else:
             view = build_findings_view(result, settings["lang"], localize,
                                        settings["analyst_include_evidence"])
-            print(f"[*] Analist özeti üretiliyor ({provider})...", file=sys.stderr)
+            print(f"[*] {t['analyst_generating']} ({provider})...", file=sys.stderr)
             try:
                 meta["analyst_summary"] = summarize(
                     view, provider, api_key=api_key,
                     model=settings.get("analyst_model"), base_url=base)
             except Exception as e:  # noqa: BLE001
-                print(f"[!] Analist hatası: {e}", file=sys.stderr)
+                print(f"[!] {t['analyst_error']} {e}", file=sys.stderr)
 
     diff = None
     baseline_path = settings["baseline"]
@@ -256,7 +265,7 @@ def _scan_one(target: str, settings: dict) -> int:
     if settings.get("github_issues") and diff is not None:
         token = os.environ.get("GITHUB_TOKEN")
         if not token:
-            print("[!] GITHUB_TOKEN yok; issue oluşturma atlandı.", file=sys.stderr)
+            print(f"[!] {t['github_skipped_no_token']}", file=sys.stderr)
         else:
             from .i18n import localize
             from .integrations.github import post_findings
@@ -265,17 +274,18 @@ def _scan_one(target: str, settings: dict) -> int:
                     settings["github_issues"], token, diff, localize,
                     settings["lang"], settings["issue_min_severity"],
                     settings["close_resolved"])
-                print(f"[+] GitHub: {len(gh['created'])} issue açıldı, "
-                      f"{len(gh['closed'])} kapatıldı.", file=sys.stderr)
+                msg = t["github_result"].format(
+                    created=len(gh["created"]), closed=len(gh["closed"]))
+                print(f"[+] {msg}", file=sys.stderr)
             except Exception as e:  # noqa: BLE001
-                print(f"[!] GitHub issue hatası: {e}", file=sys.stderr)
+                print(f"[!] {t['github_error']} {e}", file=sys.stderr)
 
     counts = result.counts()
-    summary = ", ".join(f"{counts[s]} {s}" for s in counts if counts[s]) or "bulgu yok"
-    print(f"\n[+] Bitti. Rapor: {run_dir}", file=sys.stderr)
+    summary = ", ".join(f"{counts[s]} {s}" for s in counts if counts[s]) or t["no_findings_short"]
+    print(f"\n[+] {t['scan_done']} {run_dir}", file=sys.stderr)
     print(f"    {summary}", file=sys.stderr)
     if diff is not None:
-        print(f"    baseline: {len(diff.new)} yeni, {len(diff.resolved)} çözülen",
+        print(f"    {t['baseline_line'].format(new=len(diff.new), resolved=len(diff.resolved))}",
               file=sys.stderr)
 
     if settings["fail_on_new"] and exceeds_new_threshold(
@@ -288,60 +298,65 @@ def _scan_one(target: str, settings: dict) -> int:
     return 0
 
 
-def _run_modules_command() -> int:
-    print("Mevcut modüller:\n")
+def _run_modules_command(lang: str) -> int:
+    t = ui(lang)
+    print(f"{t['available_modules']}\n")
     for name, spec in REGISTRY.items():
-        tag = "docker/araç" if spec.needs_docker else "saf-python"
-        active = "aktif" if spec.active else "pasif"
-        print(f"  {name:10s} [{tag}, {active}] {spec.description}")
+        tag = t["docker_tool"] if spec.needs_docker else t["pure_python"]
+        active = t["active"] if spec.active else t["passive"]
+        desc = module_description(name, spec.description, lang)
+        print(f"  {name:10s} [{tag}, {active}] {desc}")
     return 0
 
 
-def _run_doctor_command() -> int:
+def _run_doctor_command(lang: str) -> int:
     import shutil
 
     from .dockerutil import docker_available
     from .runner import TOOLS
-    print("recon doctor\n")
-    print(f"  Docker: {'var' if docker_available() else 'YOK'}")
-    print("  Native araçlar:")
+    t = ui(lang)
+    print(f"{t['doctor_title']}\n")
+    print(f"  {t['docker_label']}: {t['present'] if docker_available() else t['missing']}")
+    print(f"  {t['native_tools_label']}")
     for tool, (_image, binary) in TOOLS.items():
         found = shutil.which(binary)
-        print(f"    {tool:8s} ({binary}): {found or 'YOK'}")
-    print("  Opsiyonel paketler:")
+        print(f"    {tool:8s} ({binary}): {found or t['missing']}")
+    print(f"  {t['optional_packages_label']}")
     for pkg in ("yaml", "dns"):
         try:
             __import__(pkg)
-            print(f"    {pkg}: var")
+            print(f"    {pkg}: {t['present']}")
         except ImportError:
-            print(f"    {pkg}: YOK")
+            print(f"    {pkg}: {t['missing']}")
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     raw = list(sys.argv[1:] if argv is None else argv)
+    pre_lang = _peek_lang(raw)
     if raw and raw[0] == "diff":
         return _run_diff_command(raw[1:])
     if raw and raw[0] == "modules":
-        return _run_modules_command()
+        return _run_modules_command(pre_lang)
     if raw and raw[0] == "doctor":
-        return _run_doctor_command()
+        return _run_doctor_command(pre_lang)
     if raw and raw[0] == "init":
         path = raw[1] if len(raw) > 1 else "recon.yaml"
+        t = ui(pre_lang)
         try:
             write_template(path)
         except ConfigError as e:
-            print(f"HATA: {e}", file=sys.stderr)
+            print(f"{t['err']}: {e}", file=sys.stderr)
             return 1
-        print(f"Örnek yapılandırma yazıldı: {path}")
+        print(f"{t['wrote_template']} {path}")
         return 0
 
     args = build_parser().parse_args(argv)
+    t = ui(args.lang or pre_lang)
 
-    print(BANNER_WARNING, file=sys.stderr)
+    print(t["banner_warning"], file=sys.stderr)
     if not args.authorized:
-        print("\nHATA: --authorized bayrağı gerekli. Yetkiniz olduğunu onaylamadan "
-              "tarama başlatılmaz.", file=sys.stderr)
+        print(f"\n{t['err']}: {t['err_need_authorized']}", file=sys.stderr)
         return 1
 
     cfg: dict = {}
@@ -349,7 +364,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             cfg = load_config(args.config)
         except ConfigError as e:
-            print(f"HATA (config): {e}", file=sys.stderr)
+            print(f"{t['err']} ({t['err_config']}): {e}", file=sys.stderr)
             return 1
 
     # Resolve targets: positional wins, else config targets.
@@ -358,8 +373,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         targets = list(cfg.get("targets", []))
     if not targets:
-        print("HATA: hedef verilmedi (pozisyonel argüman ya da config targets).",
-              file=sys.stderr)
+        print(f"{t['err']}: {t['err_no_target']}", file=sys.stderr)
         return 1
 
     cfg_scope = cfg.get("scope", [])
@@ -398,7 +412,8 @@ def main(argv: list[str] | None = None) -> int:
     if settings["formats"]:
         bad = [f for f in settings["formats"] if f not in _RENDERERS]
         if bad:
-            print(f"HATA: bilinmeyen biçim(ler): {', '.join(bad)}", file=sys.stderr)
+            print(f"{t['err']}: {t['err_unknown_formats']}: {', '.join(bad)}",
+                  file=sys.stderr)
             return 1
 
     rc = 0

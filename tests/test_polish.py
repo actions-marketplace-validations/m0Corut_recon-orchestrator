@@ -10,13 +10,19 @@ from recon.report import to_json
 
 
 def test_modules_command_runs(capsys):
-    assert _run_modules_command() == 0
+    assert _run_modules_command("en") == 0
     out = capsys.readouterr().out
     assert "headers" in out and "dns" in out and "mail" in out
 
 
+def test_modules_command_turkish(capsys):
+    assert _run_modules_command("tr") == 0
+    out = capsys.readouterr().out
+    assert "Mevcut modüller" in out
+
+
 def test_doctor_command_runs(capsys):
-    assert _run_doctor_command() == 0
+    assert _run_doctor_command("en") == 0
     out = capsys.readouterr().out
     assert "Docker" in out and "nmap" in out
 

@@ -30,47 +30,47 @@ class ConfigError(Exception):
 
 def load_config(path: str) -> dict[str, Any]:
     if yaml is None:
-        raise ConfigError("pyyaml kurulu değil: pip install pyyaml")
+        raise ConfigError("pyyaml is not installed: pip install pyyaml")
     if not os.path.exists(path):
-        raise ConfigError(f"config bulunamadı: {path}")
+        raise ConfigError(f"config not found: {path}")
     try:
         with open(path, encoding="utf-8") as fh:
             data = yaml.safe_load(fh) or {}
     except yaml.YAMLError as e:  # type: ignore[union-attr]
-        raise ConfigError(f"YAML ayrıştırılamadı: {e}") from e
+        raise ConfigError(f"could not parse YAML: {e}") from e
     if not isinstance(data, dict):
-        raise ConfigError("config kök öğesi bir eşleme (mapping) olmalı")
+        raise ConfigError("the config root must be a mapping")
 
     unknown = set(data) - TOP_KEYS
     if unknown:
-        raise ConfigError(f"bilinmeyen anahtar(lar): {', '.join(sorted(unknown))}")
+        raise ConfigError(f"unknown key(s): {', '.join(sorted(unknown))}")
 
     if "targets" in data and not isinstance(data["targets"], list):
-        raise ConfigError("targets bir liste olmalı")
+        raise ConfigError("targets must be a list")
     if "scope" in data and not isinstance(data["scope"], list):
-        raise ConfigError("scope bir liste olmalı")
+        raise ConfigError("scope must be a list")
     if "options" in data:
         if not isinstance(data["options"], dict):
-            raise ConfigError("options bir eşleme olmalı")
+            raise ConfigError("options must be a mapping")
         bad = set(data["options"]) - OPTION_KEYS
         if bad:
-            raise ConfigError(f"bilinmeyen options anahtar(ları): {', '.join(sorted(bad))}")
+            raise ConfigError(f"unknown options key(s): {', '.join(sorted(bad))}")
     return data
 
 
 TEMPLATE = """\
-# recon-orchestrator yapılandırması. Tüm alanlar opsiyonel; CLI bayrakları önceliklidir.
+# recon-orchestrator configuration. Every field is optional; CLI flags take priority.
 
-# Taranacak hedefler (yalnız yetkili olduğunuz sistemler).
+# Targets to scan (only systems you are authorized to test).
 targets:
   - https://example.com
 
-# Ek izinli host'lar (varsayılan: sadece hedef host). *.domain desteklenir.
+# Extra allowed hosts (default: the target host only). *.domain is supported.
 # scope:
 #   - api.example.com
 #   - "*.cdn.example.com"
 
-# Çalıştırılacak modüller ("all" ya da liste).
+# Modules to run ("all" or a list).
 modules: all
 #   - headers
 #   - cors
@@ -79,16 +79,16 @@ modules: all
 #   - tls
 #   - web
 
-rate: 20              # aktif araçlar için istek/sn
-allow_private: false  # özel/loopback adreslere izin
-lang: en              # rapor dili: en | tr
+rate: 20              # requests/sec for active tools
+allow_private: false  # allow private/loopback addresses
+lang: en              # report language: en | tr
 output_dir: recon_runs
 
-# CI çıkış kodu kapıları (opsiyonel):
-# fail_on: high        # bu önemde+ herhangi bir bulgu -> çıkış 2
-# fail_on_new: medium  # bu önemde+ YENİ bulgu -> çıkış 2
+# CI exit-code gates (optional):
+# fail_on: high        # any finding at this severity+ -> exit 2
+# fail_on_new: medium  # a NEW finding at this severity+ -> exit 2
 
-# Modül ayarları (opsiyonel):
+# Per-module options (optional):
 # options:
 #   top_ports: 100
 #   nuclei_tags: cve,exposure,misconfig
@@ -100,6 +100,6 @@ output_dir: recon_runs
 
 def write_template(path: str) -> None:
     if os.path.exists(path):
-        raise ConfigError(f"dosya zaten var: {path}")
+        raise ConfigError(f"file already exists: {path}")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(TEMPLATE)
