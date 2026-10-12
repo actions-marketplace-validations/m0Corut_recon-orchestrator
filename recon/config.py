@@ -23,6 +23,7 @@ OPTION_KEYS = {
     "top_ports", "nuclei_tags", "nuclei_severity", "wordlist", "content_threads",
     "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout",
     "discover_max_hosts", "discover_timeout",
+    "crawl_depth", "crawl_max_urls", "crawl_timeout", "crawl_headless",
 }
 
 

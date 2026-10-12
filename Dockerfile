@@ -12,10 +12,15 @@ FROM projectdiscovery/katana:v1.8.0 AS katana
 
 FROM python:3.12-slim
 
-# nmap + DNS/openssl araçları + testssl bağımlılıkları
+# nmap + DNS/openssl araçları + testssl bağımlılıkları.
+# chromium: katana --crawl-headless (SPA endpoint keşfi) için; katana -sc bunu bulur.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         nmap dnsutils bsdmainutils procps git ca-certificates \
+        chromium musl \
     && rm -rf /var/lib/apt/lists/*
+# katana's upstream binary is musl-linked (Alpine image); the musl package
+# provides its loader so it runs on this glibc base.
+ENV CHROME_PATH=/usr/bin/chromium
 
 # nuclei
 COPY --from=nuclei /usr/local/bin/nuclei /usr/local/bin/nuclei

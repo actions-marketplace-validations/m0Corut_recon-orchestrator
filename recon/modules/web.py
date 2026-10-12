@@ -153,7 +153,8 @@ def _dast_from_crawl(target: str, ctx, runner, severities: str) -> list[Finding]
             else None) or crawl(
         target, runner, depth=int(ctx.get("crawl_depth", 2)),
         rate=int(ctx.get("rate", 20)), timeout=int(ctx.get("crawl_timeout", 300)),
-        max_urls=int(ctx.get("crawl_max_urls", 500)))
+        max_urls=int(ctx.get("crawl_max_urls", 500)),
+        headless=bool(ctx.get("crawl_headless", False)))
     fuzzable = with_params(urls)
     if not fuzzable:
         return [Finding(

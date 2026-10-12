@@ -7,6 +7,15 @@ Format [Keep a Changelog](https://keepachangelog.com/) tabanlı; sürümleme
 ## [Unreleased]
 
 ### Added
+- `--crawl-headless`: crawl/`--dast` sırasında gerçek (başsız) tarayıcı sürerek
+  tek-sayfa uygulamaların (SPA) çalışma anında oluşan endpoint'lerini keşfeder.
+  Chromium gerektirir; all-in-one imajı içerir.
+
+### Fixed
+- All-in-one Docker imajı: katana binary'si musl-linked (Alpine kaynaklı) olduğu
+  için glibc tabanlı imajda çalışmıyordu; `musl` paketi eklenerek düzeltildi.
+
+### Added
 - `crawl` modülü (katana): siteyi tarayıp endpoint/parametre haritası çıkarır
   (host-içi, GET, bağlı JS'i de ayrıştırır). Keşfedilen URL'ler bağlamda saklanır.
 - `--dast` artık OpenAPI şeması yoksa da çalışır: siteyi crawl edip yalnızca

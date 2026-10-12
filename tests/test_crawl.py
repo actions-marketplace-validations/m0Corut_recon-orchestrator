@@ -64,3 +64,28 @@ def test_module_run_stores_urls_on_context(monkeypatch):
     ctx = ScanContext()
     mod.run("https://t", ctx)
     assert ctx.extra["crawled_urls"] == ["https://t/a?x=1"]
+
+
+def test_crawl_headless_adds_browser_flags(monkeypatch):
+    seen = {}
+
+    class R:
+        def can_run(self, tool):
+            return tool == "katana"
+
+        def run_capture(self, tool, args, timeout):
+            seen["args"] = args
+            return ""
+    crawl("https://t.com", R(), headless=True)
+    assert "-headless" in seen["args"] and "-nos" in seen["args"]
+    # default stays non-headless
+    crawl("https://t.com", R())
+    assert "-headless" not in seen["args"]
+
+
+def test_module_passes_headless_from_context(monkeypatch):
+    import recon.modules.crawl as mod
+    seen = {}
+    monkeypatch.setattr(mod, "crawl", lambda *a, **k: seen.update(k) or [])
+    mod.run("https://t", ScanContext(crawl_headless=True))
+    assert seen["headless"] is True
