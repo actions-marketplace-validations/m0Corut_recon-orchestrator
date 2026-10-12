@@ -36,6 +36,10 @@ CATALOG: dict[str, dict[str, dict[str, str]]] = {
         "detail": "{sources} kaynağından {domain} altında {resolved} ad çözüldü; "
                   "{live} canlı web host'u, {third} üçüncü taraf (yoklanmadı), "
                   "{private} özel adres (atlandı)."}},
+    "web.dast-ran": {"tr": {
+        "title": "API şeması üzerinde DAST çalıştı",
+        "detail": "nuclei DAST şablonları {spec} şemasındaki {ops} GET işlemine "
+                  "karşı çalıştırıldı."}},
     "authz.page-not-checked": {"tr": {
         "title": "Sayfa kontrol edilemedi: {page}",
         "detail": "Sayfa getirilemediği için erişim kontrolü doğrulanmadı: {reason}.",

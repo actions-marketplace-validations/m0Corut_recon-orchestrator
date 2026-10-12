@@ -25,6 +25,7 @@ class ScanContext:
     content_threads: int = 10
     wordlist_entries: list[str] | None = None
     discover_max_hosts: int = 200
+    dast: bool = False                  # nuclei DAST on a GET-only API spec copy
     discover_timeout: int = 300
     # authenticated (authz) module inputs
     auth_header: str | None = None

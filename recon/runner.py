@@ -29,6 +29,16 @@ TOOLS = {
 CORE_TOOLS = ("nmap", "nuclei", "testssl")
 
 OUT_PLACEHOLDER = "{out}"
+IN_PLACEHOLDER = "{in}"
+
+
+def _write_input(content: str, filename: str) -> tuple[str, str]:
+    """Write `content` to a fresh temp dir; return (dir, file path)."""
+    in_dir = tempfile.mkdtemp(prefix="recon-in-")
+    path = os.path.join(in_dir, filename)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(content)
+    return in_dir, path
 
 
 class DockerRunner:
@@ -61,6 +71,22 @@ class DockerRunner:
             return ""
         finally:
             _cleanup(out_dir, filename)
+
+
+    def run_capture_with_input(self, tool: str, args: list[str], timeout: int,
+                               content: str, filename: str = "input.json") -> str:
+        """Like run_capture, with `content` mounted read-only at {in}."""
+        image = TOOLS[tool][0]
+        if not ensure_image(image):
+            return ""
+        in_dir, _ = _write_input(content, filename)
+        try:
+            cont_path = f"/in/{filename}"
+            real_args = [a.replace(IN_PLACEHOLDER, cont_path) for a in args]
+            return docker_run(image, real_args, timeout=timeout,
+                              volumes={in_dir: "/in:ro"}).stdout
+        finally:
+            _cleanup(in_dir, filename)
 
 
 class NativeRunner:
@@ -96,6 +122,16 @@ class NativeRunner:
             return ""
         finally:
             _cleanup(out_dir, filename)
+
+
+    def run_capture_with_input(self, tool: str, args: list[str], timeout: int,
+                               content: str, filename: str = "input.json") -> str:
+        in_dir, path = _write_input(content, filename)
+        try:
+            real_args = [a.replace(IN_PLACEHOLDER, path) for a in args]
+            return self.run_capture(tool, real_args, timeout)
+        finally:
+            _cleanup(in_dir, filename)
 
 
 def _cleanup(out_dir: str, filename: str) -> None:

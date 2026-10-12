@@ -141,6 +141,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="A path requiring login (repeatable); authz tests these")
     p.add_argument("--spec", default=None,
                    help="OpenAPI/Swagger spec URL/path (for the openapi module)")
+    p.add_argument("--dast", action="store_true",
+                   help="web module: also run nuclei DAST (fuzzing) templates on the "
+                        "GET operations of the API spec (sends attack payloads)")
     p.add_argument("--github-issues", default=None, metavar="OWNER/REPO",
                    help="Open an issue in this repo for new findings (needs GITHUB_TOKEN)")
     p.add_argument("--issue-min-severity", default="high",
@@ -233,6 +236,7 @@ def _scan_one(target: str, settings: dict) -> tuple[int, list[str]]:
                       auth_pages=settings["auth_pages"])
     if settings.get("spec"):
         ctx.extra["spec"] = settings["spec"]
+    ctx.dast = bool(settings.get("dast"))
     opts = settings["options"]
     for field in ("top_ports", "nuclei_tags", "nuclei_severity", "content_threads",
                   "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout",
@@ -481,6 +485,7 @@ def main(argv: list[str] | None = None) -> int:
                         if args.auth_header_env else args.auth_header),
         "auth_pages": args.auth_page,
         "spec": args.spec,
+        "dast": args.dast,
         "github_issues": args.github_issues,
         "issue_min_severity": args.issue_min_severity,
         "close_resolved": args.close_resolved,

@@ -37,3 +37,22 @@ def test_native_run_capture_missing_binary_returns_empty(monkeypatch):
 
 def test_docker_runner_name():
     assert DockerRunner().name == "docker"
+
+
+def test_native_run_capture_with_input_substitutes_and_cleans(monkeypatch):
+    import os
+    seen = {}
+
+    class R:
+        stdout = "ok"
+
+    def fake_run(cmd, **kw):
+        path = cmd[cmd.index("-l") + 1]
+        seen["path"] = path
+        with open(path, encoding="utf-8") as fh:
+            seen["content"] = fh.read()
+        return R()
+    monkeypatch.setattr("subprocess.run", fake_run)
+    out = NativeRunner().run_capture_with_input("nuclei", ["-l", "{in}"], 5, "{}", "s.json")
+    assert out == "ok" and seen["content"] == "{}"
+    assert not os.path.exists(seen["path"])
