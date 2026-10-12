@@ -22,7 +22,11 @@ TOOLS = {
     "nmap": ("instrumentisto/nmap:7.98", "nmap"),
     "nuclei": ("projectdiscovery/nuclei:v3.11.1", "nuclei"),
     "testssl": ("drwetter/testssl.sh:3.2", "testssl.sh"),
+    "subfinder": ("projectdiscovery/subfinder:v2.17.0", "subfinder"),
 }
+# Tools a scan cannot do without (vs. optional enrichers like subfinder); used
+# by get_runner('auto') to decide whether native binaries are complete.
+CORE_TOOLS = ("nmap", "nuclei", "testssl")
 
 OUT_PLACEHOLDER = "{out}"
 
@@ -113,6 +117,6 @@ def get_runner(mode: str = "auto"):
         return NativeRunner()
     native = NativeRunner()
     # prefer native only if ALL tools are present; otherwise Docker is simpler
-    if all(native.can_run(t) for t in TOOLS):
+    if all(native.can_run(t) for t in CORE_TOOLS):
         return native
     return DockerRunner()

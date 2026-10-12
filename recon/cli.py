@@ -105,6 +105,12 @@ def build_parser() -> argparse.ArgumentParser:
                         "run for this host as a baseline")
     p.add_argument("--fail-on-new", default=None,
                    help="Exit code 2 if a NEW finding reaches this severity")
+    p.add_argument("--discover", action="store_true",
+                   help="Also inventory subdomains (CT logs, subfinder if present), "
+                        "probe live hosts, flag dangling CNAMEs")
+    p.add_argument("--scan-discovered", action="store_true",
+                   help="With --discover: scan each live in-house subdomain too "
+                        "(only if you are authorized for all of them)")
     p.add_argument("--suppress-file", default=None,
                    help="Accepted-risk file (YAML; default: .reconignore.yml if present)")
     p.add_argument("--notify", action="append", default=None, metavar="URL",
@@ -200,14 +206,18 @@ def _run_diff_command(argv: list[str]) -> int:
     return 2 if new else 0
 
 
-def _scan_one(target: str, settings: dict) -> int:
-    """Run a single target end to end; returns its exit code (0 ok, 2 gate hit)."""
+def _scan_one(target: str, settings: dict) -> tuple[int, list[str]]:
+    """Run a single target end to end.
+
+    Returns (exit code: 0 ok / 1 error / 2 gate hit, live URLs found by the
+    discover module, if it ran).
+    """
     t = ui(settings["lang"])
     try:
         selected = resolve_modules(settings["modules"])
     except ValueError as e:
         print(f"{t['err']}: {e}", file=sys.stderr)
-        return 1
+        return 1, []
 
     scope = Scope.for_target(target, extra=settings["scope"],
                              allow_private=settings["allow_private"])
@@ -220,7 +230,8 @@ def _scan_one(target: str, settings: dict) -> int:
         ctx.extra["spec"] = settings["spec"]
     opts = settings["options"]
     for field in ("top_ports", "nuclei_tags", "nuclei_severity", "content_threads",
-                  "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout"):
+                  "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout",
+                  "discover_max_hosts", "discover_timeout"):
         if field in opts:
             setattr(ctx, field, opts[field])
     wordlist = settings["wordlist"] or opts.get("wordlist")
@@ -337,14 +348,15 @@ def _scan_one(target: str, settings: dict) -> int:
         print(f"    {t['baseline_line'].format(new=len(diff.new), resolved=len(diff.resolved))}",
               file=sys.stderr)
 
+    discovered = list(ctx.extra.get("discovered_urls", []))
     if settings["fail_on_new"] and exceeds_new_threshold(
             diff or compute_diff(result, {}), settings["fail_on_new"]):
-        return 2
+        return 2, discovered
     if settings["fail_on"]:
         threshold = SEVERITY_RANK.get(settings["fail_on"].lower())
         if threshold is not None and result.max_rank() >= threshold:
-            return 2
-    return 0
+            return 2, discovered
+    return 0, discovered
 
 
 def _run_modules_command(lang: str) -> int:
@@ -476,9 +488,34 @@ def main(argv: list[str] | None = None) -> int:
                   file=sys.stderr)
             return 1
 
+    if args.scan_discovered and not args.discover:
+        print(f"{t['err']}: --scan-discovered requires --discover", file=sys.stderr)
+        return 1
+    if args.discover:
+        try:
+            names = resolve_modules(settings["modules"])
+        except ValueError as e:
+            print(f"{t['err']}: {e}", file=sys.stderr)
+            return 1
+        settings["modules"] = names + ([] if "discover" in names else ["discover"])
+
     rc = 0
+    done = {_normalize_target(x).rstrip("/") for x in targets}
     for raw_target in targets:
-        rc = max(rc, _scan_one(_normalize_target(raw_target), settings))
+        code, discovered = _scan_one(_normalize_target(raw_target), settings)
+        rc = max(rc, code)
+        extra = [u for u in discovered if u.rstrip("/") not in done]
+        if not extra:
+            continue
+        if not args.scan_discovered:
+            if not settings["quiet"]:
+                print(f"[i] {t['discovered_hint'].format(n=len(extra))}", file=sys.stderr)
+            continue
+        print(f"[*] {t['discovered_scanning'].format(n=len(extra))}", file=sys.stderr)
+        sub = dict(settings, modules=[m for m in settings["modules"] if m != "discover"])
+        for url in extra:
+            done.add(url.rstrip("/"))
+            rc = max(rc, _scan_one(url, sub)[0])
     return rc
 
 

@@ -22,6 +22,7 @@ TOP_KEYS = {
 OPTION_KEYS = {
     "top_ports", "nuclei_tags", "nuclei_severity", "wordlist", "content_threads",
     "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout",
+    "discover_max_hosts", "discover_timeout",
 }
 
 
@@ -104,6 +105,7 @@ output_dir: recon_runs
 #   nuclei_severity: low,medium,high,critical
 #   wordlist: ./paths.txt
 #   content_threads: 10
+#   discover_max_hosts: 200   # cap on names resolved by --discover
 """
 
 

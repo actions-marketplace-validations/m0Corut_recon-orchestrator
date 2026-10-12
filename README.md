@@ -198,6 +198,20 @@ listed in every report under "Suppressed".
   fingerprint: 3f2a9c...              # optional: just this one instance
 ```
 
+**Whole attack surface.** `--discover` adds the `discover` module: it lists
+subdomains from Certificate Transparency and subfinder (when available), probes
+which in-house ones serve HTTP, and flags dangling CNAMEs. Each live host is a
+finding, so the next run reports **new subdomains** through the normal baseline
+diff. Discovered hosts are only listed by default; add `--scan-discovered` to
+run the other modules against each of them too, and only if you are authorized
+for all of them. Hosts that CNAME to a third-party service (Shopify, Heroku, …)
+are never probed or scanned, only checked in DNS.
+
+```bash
+recon example.com --authorized --discover                    # inventory
+recon example.com --authorized --discover --scan-discovered  # inventory + scan each
+```
+
 **Notifications.** A scheduled scan is only useful if someone sees it.
 `--notify-env RECON_WEBHOOK` reads one or more webhook URLs (comma-separated)
 from an environment variable and posts a short message only when there are
@@ -220,6 +234,7 @@ payload. Messages contain titles and rule ids, never evidence.
 | `authz` | a session cookie/token you provide | Whether pages that should require login are actually reachable without one (read-only — GET/HEAD only, never submits forms) |
 | `openapi` | an OpenAPI/Swagger spec | Whether endpoints the spec marks as requiring authentication are reachable without it |
 | `mail` | `[dns]` extra | Whether your mail server offers STARTTLS, and whether MTA-STS/TLS-RPT are configured |
+| `discover` | nothing (`[dns]` extra recommended; subfinder optional) | Subdomain inventory from Certificate Transparency (crt.sh, Cert Spotter) and subfinder, live web hosts, and dangling CNAMEs that may allow a subdomain takeover. Opt-in via `--discover` |
 
 Run `recon modules` any time to see this list with each module's current
 description.
@@ -487,6 +502,21 @@ başlığı altında listelenir.
   fingerprint: 3f2a9c...              # isteğe bağlı: yalnızca bu örnek
 ```
 
+**Tüm saldırı yüzeyi.** `--discover`, `discover` modülünü ekler: sertifika
+şeffaflığı kayıtlarından ve (varsa) subfinder'dan alt alan adlarını listeler,
+sana ait olanlardan hangilerinin HTTP sunduğunu yoklar ve sahipsiz CNAME'leri
+işaretler. Her canlı host bir bulgudur, bu yüzden sonraki tarama normal
+baseline karşılaştırmasıyla **yeni alt alan adlarını** bildirir. Keşfedilen
+host'lar varsayılan olarak yalnızca listelenir; diğer modülleri her birinde de
+çalıştırmak için `--scan-discovered` ekle, ama yalnızca hepsi için yetkin
+varsa. Üçüncü taraf bir servise (Shopify, Heroku, …) CNAME veren host'lar asla
+yoklanmaz ve taranmaz, yalnızca DNS'te kontrol edilir.
+
+```bash
+recon ornek.com --authorized --discover                    # envanter
+recon ornek.com --authorized --discover --scan-discovered  # envanter + her birini tara
+```
+
 **Bildirimler.** Zamanlanmış tarama ancak biri sonucu görürse işe yarar.
 `--notify-env RECON_WEBHOOK` bir ortam değişkeninden bir veya daha fazla
 webhook adresi okur (virgülle ayrılmış) ve yalnızca `--notify-min-severity`
@@ -510,6 +540,7 @@ rule_id bulunur, kanıt asla bulunmaz.
 | `authz` | senin verdiğin bir session cookie/token | Giriş gerektirmesi gereken sayfaların gerçekten girişsiz erişilip erişilemediği (salt-okunur — sadece GET/HEAD, form göndermez) |
 | `openapi` | bir OpenAPI/Swagger şeması | Şemanın kimlik doğrulama gerektirdiğini söylediği endpoint'lerin gerçekten kimliksiz erişilip erişilemediği |
 | `mail` | `[dns]` extra | Mail sunucunun STARTTLS sunup sunmadığı, MTA-STS/TLS-RPT'nin yapılandırılıp yapılandırılmadığı |
+| `discover` | hiçbir şey (`[dns]` extra önerilir; subfinder isteğe bağlı) | Sertifika şeffaflığı (crt.sh, Cert Spotter) ve subfinder ile alt alan adı envanteri, canlı web host'ları ve subdomain takeover'a açık sahipsiz CNAME'ler. `--discover` ile açılır |
 
 Bu listeyi ve her modülün güncel açıklamasını görmek için istediğin an
 `recon modules` çalıştır.
