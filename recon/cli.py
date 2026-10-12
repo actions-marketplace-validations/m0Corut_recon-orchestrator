@@ -221,8 +221,9 @@ def _scan_one(target: str, settings: dict) -> tuple[int, list[str]]:
 
     scope = Scope.for_target(target, extra=settings["scope"],
                              allow_private=settings["allow_private"])
+    limiter = RateLimiter(settings["rate"])
     ctx = ScanContext(rate=settings["rate"], http_timeout=15, scope=scope,
-                      limiter=RateLimiter(settings["rate"]),
+                      limiter=limiter,
                       runner=get_runner(settings["runner"]),
                       auth_header=settings["auth_header"],
                       auth_pages=settings["auth_pages"])
@@ -268,6 +269,10 @@ def _scan_one(target: str, settings: dict) -> tuple[int, list[str]]:
     meta = {"modules": ran, "rate": settings["rate"], "version": __version__,
             "started_at": started_at,
             "ended_at": datetime.now(timezone.utc).isoformat()}
+    if limiter.throttled:
+        # the target answered 429/503: say so, since findings may be incomplete
+        meta["throttled_responses"] = limiter.throttled
+        print(f"[!] {t['throttled'].format(n=limiter.throttled)}", file=sys.stderr)
 
     # Optional: analyst summary (opt-in)
     if settings.get("analyst"):

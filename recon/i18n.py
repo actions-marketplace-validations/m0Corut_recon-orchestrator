@@ -173,6 +173,8 @@ UI: dict[str, dict[str, str]] = {
         "err_suppress": "suppression file",
         "notify_sent": "notification sent to {n} webhook(s)",
         "notify_error": "Notification error:",
+        "throttled": "target throttled {n} request(s) (429/503); the scan slowed "
+            "down automatically, results may be incomplete",
         "discovered_scanning": "scanning {n} discovered host(s)",
         "discovered_hint": "{n} live subdomain(s) found; add --scan-discovered "
             "to scan them (only if you are authorized for each)",
@@ -225,6 +227,8 @@ UI: dict[str, dict[str, str]] = {
         "err_suppress": "bastırma dosyası",
         "notify_sent": "{n} webhook'a bildirim gönderildi",
         "notify_error": "Bildirim hatası:",
+        "throttled": "hedef {n} isteği kısıtladı (429/503); tarama otomatik "
+            "yavaşladı, sonuçlar eksik olabilir",
         "discovered_scanning": "keşfedilen {n} host taranıyor",
         "discovered_hint": "{n} canlı alt alan adı bulundu; taramak için "
             "--scan-discovered ekle (yalnızca her biri için yetkin varsa)",
