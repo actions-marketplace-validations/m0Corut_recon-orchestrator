@@ -6,6 +6,17 @@ Format [Keep a Changelog](https://keepachangelog.com/) tabanlı; sürümleme
 
 ## [Unreleased]
 
+### Added
+- `crawl` modülü (katana): siteyi tarayıp endpoint/parametre haritası çıkarır
+  (host-içi, GET, bağlı JS'i de ayrıştırır). Keşfedilen URL'ler bağlamda saklanır.
+- `--dast` artık OpenAPI şeması yoksa da çalışır: siteyi crawl edip yalnızca
+  parametre taşıyan host-içi GET URL'lerini nuclei DAST ile fuzz eder.
+- `katana` araç olarak eklendi (Docker imajında da; `v1.8.0`).
+
+### Changed
+- nuclei şablonları kalıcı bir Docker volume'unda (`recon-nuclei-templates`)
+  önbelleğe alınır; her taramada ~14.000 şablonun yeniden indirilmesi önlenir.
+
 ## [1.1.1] - 2026-10-12
 
 ### Fixed

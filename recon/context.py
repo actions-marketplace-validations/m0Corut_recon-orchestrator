@@ -27,6 +27,9 @@ class ScanContext:
     discover_max_hosts: int = 200
     dast: bool = False                  # nuclei DAST on a GET-only API spec copy
     discover_timeout: int = 300
+    crawl_depth: int = 2
+    crawl_max_urls: int = 500
+    crawl_timeout: int = 300
     # authenticated (authz) module inputs
     auth_header: str | None = None
     auth_pages: list[str] | None = None
