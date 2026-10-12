@@ -421,9 +421,11 @@ def _run_doctor_command(lang: str) -> int:
     print(f"{t['doctor_title']}\n")
     print(f"  {t['docker_label']}: {t['present'] if docker_available() else t['missing']}")
     print(f"  {t['native_tools_label']}")
+    labels = {tool: f"{tool} ({binary})" for tool, (_image, binary) in TOOLS.items()}
+    width = max(len(label) for label in labels.values())   # one status column
     for tool, (_image, binary) in TOOLS.items():
         found = shutil.which(binary)
-        print(f"    {tool:8s} ({binary}): {found or t['missing']}")
+        print(f"    {labels[tool]:<{width}} : {found or t['missing']}")
     print(f"  {t['optional_packages_label']}")
     for pkg in ("yaml", "dns"):
         try:
