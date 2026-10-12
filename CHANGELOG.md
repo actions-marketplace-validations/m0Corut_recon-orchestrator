@@ -6,6 +6,21 @@ Format [Keep a Changelog](https://keepachangelog.com/) tabanlı; sürümleme
 
 ## [Unreleased]
 
+### Security
+- `authz`: kimlik başlığı yalnızca aynı origin'e (şema, host, port) gönderilir;
+  başka bir kapsam içi host'a veya https→http yönlendirmede düşürülür
+  (`scoped_get(auth_headers=...)`).
+- Kapsam: `--allow-private` artık gerçekten uygulanıyor. Yalnızca wildcard ile
+  eşleşen bir host özel/loopback/link-local adrese (ör. bulut metadata
+  `169.254.169.254`) çözülüyorsa istek reddedilir. Tam adıyla verilen host'lar
+  (ör. `http://localhost:8000`) etkilenmez.
+- Araç imajları sabitlendi: `nuclei:v3.11.1`, `nmap:7.98`, `testssl.sh:3.2`
+  (Dockerfile'da testssl `v3.2.4`).
+
+### Fixed
+- `authz`: getirilemeyen veya kapsam dışı sayfalar artık sessizce atlanmıyor;
+  `authz.page-not-checked` bilgi bulgusu üretiliyor ve rapor "açık yok" demiyor.
+
 ## [1.0.0] - 2026-10-12
 
 ### Added

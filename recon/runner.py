@@ -16,10 +16,12 @@ from .dockerutil import ensure_image
 from .dockerutil import run as docker_run
 
 # logical tool -> (docker image, native binary name)
+# Images are pinned so scans are reproducible and a re-tagged upstream image is
+# not pulled silently; bump these deliberately (keep the Dockerfile in sync).
 TOOLS = {
-    "nmap": ("instrumentisto/nmap", "nmap"),
-    "nuclei": ("projectdiscovery/nuclei:latest", "nuclei"),
-    "testssl": ("drwetter/testssl.sh", "testssl.sh"),
+    "nmap": ("instrumentisto/nmap:7.98", "nmap"),
+    "nuclei": ("projectdiscovery/nuclei:v3.11.1", "nuclei"),
+    "testssl": ("drwetter/testssl.sh:3.2", "testssl.sh"),
 }
 
 OUT_PLACEHOLDER = "{out}"
