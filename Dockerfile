@@ -8,6 +8,7 @@
 # recon/runner.py içindeki TOOLS ile aynı tutun)
 FROM projectdiscovery/nuclei:v3.11.1 AS nuclei
 FROM projectdiscovery/subfinder:v2.17.0 AS subfinder
+FROM projectdiscovery/katana:v1.8.0 AS katana
 
 FROM python:3.12-slim
 
@@ -19,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # nuclei
 COPY --from=nuclei /usr/local/bin/nuclei /usr/local/bin/nuclei
 COPY --from=subfinder /usr/local/bin/subfinder /usr/local/bin/subfinder
+COPY --from=katana /usr/local/bin/katana /usr/local/bin/katana
 
 # testssl.sh (bash script + bundled openssl)
 RUN git clone --depth 1 --branch v3.2.4 https://github.com/drwetter/testssl.sh.git /opt/testssl \

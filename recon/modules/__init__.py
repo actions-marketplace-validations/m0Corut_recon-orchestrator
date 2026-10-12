@@ -65,6 +65,9 @@ REGISTRY: dict[str, ModuleSpec] = {
         "discover", "recon.modules.discover", False, True,
         "Subdomain inventory (CT logs + subfinder if available), live-host probe, "
         "dangling CNAME / takeover check"),
+    "crawl": ModuleSpec(
+        "crawl", "recon.modules.crawl", True, True,
+        "Crawl the site to map endpoints/parameters (katana)", tools=("katana",)),
 }
 
 # Default execution order: cheap pure-Python modules first, Docker ones after.

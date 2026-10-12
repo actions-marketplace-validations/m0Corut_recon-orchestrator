@@ -23,6 +23,7 @@ TOOLS = {
     "nuclei": ("projectdiscovery/nuclei:v3.11.1", "nuclei"),
     "testssl": ("drwetter/testssl.sh:3.2", "testssl.sh"),
     "subfinder": ("projectdiscovery/subfinder:v2.17.0", "subfinder"),
+    "katana": ("projectdiscovery/katana:v1.8.0", "katana"),
 }
 # Tools a scan cannot do without (vs. optional enrichers like subfinder); used
 # by get_runner('auto') to decide whether native binaries are complete.
@@ -30,6 +31,19 @@ CORE_TOOLS = ("nmap", "nuclei", "testssl")
 
 OUT_PLACEHOLDER = "{out}"
 IN_PLACEHOLDER = "{in}"
+
+# nuclei ships no templates in its image and downloads ~14k on every run. A
+# persistent named volume caches them across runs, so only the first scan pays
+# the download cost (and later ones update incrementally). Docker creates the
+# volume on first use.
+NUCLEI_TEMPLATE_VOLUME = "recon-nuclei-templates"
+_TOOL_CACHE_VOLUMES = {
+    "nuclei": {NUCLEI_TEMPLATE_VOLUME: "/root/nuclei-templates"},
+}
+
+
+def _cache_volumes(tool: str) -> dict[str, str]:
+    return dict(_TOOL_CACHE_VOLUMES.get(tool, {}))
 
 
 def _write_input(content: str, filename: str) -> tuple[str, str]:
@@ -52,7 +66,8 @@ class DockerRunner:
         image = TOOLS[tool][0]
         if not ensure_image(image):
             return ""
-        return docker_run(image, args, timeout=timeout).stdout
+        return docker_run(image, args, timeout=timeout,
+                          volumes=_cache_volumes(tool)).stdout
 
     def run_with_outfile(self, tool: str, args: list[str], timeout: int,
                          filename: str = "out.json") -> str:
@@ -63,7 +78,8 @@ class DockerRunner:
         try:
             cont_path = f"/out/{filename}"
             real_args = [a.replace(OUT_PLACEHOLDER, cont_path) for a in args]
-            docker_run(image, real_args, timeout=timeout, volumes={out_dir: "/out"})
+            docker_run(image, real_args, timeout=timeout,
+                       volumes={out_dir: "/out", **_cache_volumes(tool)})
             host_file = os.path.join(out_dir, filename)
             if os.path.exists(host_file):
                 with open(host_file, encoding="utf-8", errors="replace") as fh:
@@ -84,7 +100,7 @@ class DockerRunner:
             cont_path = f"/in/{filename}"
             real_args = [a.replace(IN_PLACEHOLDER, cont_path) for a in args]
             return docker_run(image, real_args, timeout=timeout,
-                              volumes={in_dir: "/in:ro"}).stdout
+                              volumes={in_dir: "/in:ro", **_cache_volumes(tool)}).stdout
         finally:
             _cleanup(in_dir, filename)
 

@@ -45,18 +45,23 @@ def test_no_get_operations_returns_none():
 class FakeRunner:
     name = "fake"
 
-    def __init__(self):
+    def __init__(self, crawl_urls=None):
         self.calls = []
+        self._crawl_urls = crawl_urls or []
 
     def can_run(self, tool):
         return True
 
     def run_capture(self, tool, args, timeout):
+        if tool == "katana":
+            self.calls.append(("katana", args, None))
+            return "\n".join(self._crawl_urls) + "\n"
         self.calls.append(("capture", args, None))
         return ""
 
     def run_capture_with_input(self, tool, args, timeout, content, filename):
-        self.calls.append(("input", args, json.loads(content)))
+        parsed = json.loads(content) if content.lstrip().startswith(("{", "[")) else content
+        self.calls.append(("input", args, parsed))
         rec = {"template-id": "sqli-error-based", "matched-at": "https://t/users?id=1",
                "info": {"name": "SQLi", "severity": "high"}}
         return json.dumps(rec) + "\n"
@@ -79,7 +84,21 @@ def test_dast_runs_only_with_flag(monkeypatch):
     assert {"web.nuclei.sqli-error-based", "web.dast-ran"} <= rules
 
 
-def test_dast_without_spec_is_reported(monkeypatch):
+def test_dast_falls_back_to_crawl_when_no_spec(monkeypatch):
     monkeypatch.setattr("recon.modules.openapi._load_spec", lambda *a, **k: (None, None))
-    found = web.run("https://t", ScanContext(runner=FakeRunner(), dast=True))
-    assert "web.dast-no-spec" in {f.rule_id for f in found}
+    r = FakeRunner(crawl_urls=["https://t/", "https://t/search?q=1", "https://t/p?id=2"])
+    found = web.run("https://t", ScanContext(runner=r, dast=True))
+    assert any(c[0] == "katana" for c in r.calls)
+    kind, args, sent = next(c for c in r.calls if c[0] == "input")
+    assert "-dast" in args and "-im" not in args          # URL-list mode (GET)
+    assert sent == "https://t/search?q=1\nhttps://t/p?id=2\n"   # only parameterised
+    rules = {f.rule_id for f in found}
+    assert {"web.nuclei.sqli-error-based", "web.dast-crawl-ran"} <= rules
+
+
+def test_dast_crawl_no_parameterised_urls(monkeypatch):
+    monkeypatch.setattr("recon.modules.openapi._load_spec", lambda *a, **k: (None, None))
+    r = FakeRunner(crawl_urls=["https://t/", "https://t/about"])
+    found = web.run("https://t", ScanContext(runner=r, dast=True))
+    assert "web.dast-no-input" in {f.rule_id for f in found}
+    assert not any(c[0] == "input" for c in r.calls)       # nothing fuzzed

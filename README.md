@@ -98,7 +98,8 @@ which modules you want:
 | DNS/email security (`dns`) and mail (`mail`) checks | the `[dns]` extra |
 | Port scanning, TLS audit, nuclei templates (`ports`/`tls`/`web`) | Docker **or** the tools installed natively |
 | Subdomain inventory (`--discover`) | nothing extra; the `[dns]` extra adds CNAME/takeover checks, and subfinder (Docker or native) adds more sources |
-| API fuzzing (`--dast`) | nuclei (Docker or native) and an OpenAPI/Swagger spec |
+| Endpoint crawl (`crawl` module) | katana (Docker or native) |
+| Injection fuzzing (`--dast`) | nuclei (Docker or native); an OpenAPI/Swagger spec **or** a crawl of the site |
 
 **Option A — install from PyPI (recommended):**
 
@@ -286,10 +287,15 @@ The rate limit adapts on its own: if the target answers `429`/`503`, every
 module slows down (and honours `Retry-After`), then speeds back up to `--rate`.
 The run says so, because findings may be incomplete.
 
-`--dast` sends real attack payloads, so it is opt-in and deliberately narrow:
-nuclei receives a copy of the API spec that keeps only GET operations (nothing
-that changes data is fuzzed) and whose server address is rewritten to your
-target, so a spec pointing at production cannot redirect the fuzzer.
+`--dast` sends real attack payloads, so it is opt-in and deliberately narrow.
+If an OpenAPI/Swagger spec is found, nuclei receives a copy that keeps only GET
+operations and whose server is rewritten to your target. With no spec, the site
+is crawled (katana) and only the discovered GET URLs that carry query
+parameters, on the target host, are fuzzed — nothing that changes data. The
+`crawl` module (`-m crawl`) runs the same crawl on its own to map the attack
+surface. Crawling parses linked JavaScript for endpoints; a JavaScript-heavy
+single-page app may still hide its API behind the browser, which a future
+headless mode would reach.
 
 **History across runs.** `recon trend` (or `recon trend <output_dir>`) writes
 `trend.html`: per host, a stacked bar of findings by severity for each run plus
