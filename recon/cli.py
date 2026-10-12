@@ -386,6 +386,21 @@ def _scan_one(target: str, settings: dict) -> tuple[int, list[str]]:
     return 0, discovered
 
 
+def _run_trend_command(argv: list[str]) -> int:
+    """`recon trend [output_dir]` - one HTML page with each host's history."""
+    from .trend import write_trend
+
+    p = argparse.ArgumentParser(prog="recon trend")
+    p.add_argument("output_dir", nargs="?", default="recon_runs")
+    p.add_argument("-o", "--out", default=None,
+                   help="Output file (default: <output_dir>/trend.html)")
+    p.add_argument("--last", type=int, default=20, help="Runs per host (default: 20)")
+    p.add_argument("--lang", default=DEFAULT_LANG, choices=["en", "tr"])
+    a = p.parse_args(argv)
+    print(write_trend(a.output_dir, a.out, a.last, a.lang))
+    return 0
+
+
 def _run_modules_command(lang: str) -> int:
     t = ui(lang)
     print(f"{t['available_modules']}\n")
@@ -431,6 +446,8 @@ def main(argv: list[str] | None = None) -> int:
         return _run_modules_command(pre_lang)
     if raw and raw[0] == "doctor":
         return _run_doctor_command(pre_lang)
+    if raw and raw[0] == "trend":
+        return _run_trend_command(raw[1:])
     if raw and raw[0] == "init":
         path = raw[1] if len(raw) > 1 else "recon.yaml"
         t = ui(pre_lang)
