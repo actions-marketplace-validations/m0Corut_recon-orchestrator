@@ -4,8 +4,9 @@
 #   docker run --rm -v "$PWD:/work" ghcr.io/m0corut/recon-orchestrator \
 #     https://ornek.com --authorized
 
-# nuclei binary'sini resmi imajdan al (sürüm tag ile sabitlenir)
-FROM projectdiscovery/nuclei:latest AS nuclei
+# nuclei binary'sini resmi imajdan al (sürüm tag ile sabitlenir;
+# recon/runner.py içindeki TOOLS ile aynı tutun)
+FROM projectdiscovery/nuclei:v3.11.1 AS nuclei
 
 FROM python:3.12-slim
 
@@ -18,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=nuclei /usr/local/bin/nuclei /usr/local/bin/nuclei
 
 # testssl.sh (bash script + bundled openssl)
-RUN git clone --depth 1 https://github.com/drwetter/testssl.sh.git /opt/testssl \
+RUN git clone --depth 1 --branch v3.2.4 https://github.com/drwetter/testssl.sh.git /opt/testssl \
     && ln -s /opt/testssl/testssl.sh /usr/local/bin/testssl.sh
 
 WORKDIR /app

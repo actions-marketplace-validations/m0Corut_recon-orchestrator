@@ -38,3 +38,30 @@ def test_run_without_pages_is_info():
     ctx = ScanContext(auth_header="Cookie: s=1")
     f = _rules(run("https://x", ctx))
     assert "authz.no-pages" in f
+
+
+def test_unreachable_page_is_reported_not_clean(monkeypatch):
+    import requests
+
+    import recon.modules.authz as authz
+
+    def fail(*a, **kw):
+        raise requests.ConnectionError("down")
+    monkeypatch.setattr(authz, "scoped_get", fail)
+    ctx = ScanContext(auth_header="Cookie: s=1", auth_pages=["/admin"])
+    f = _rules(run("https://x", ctx))
+    assert "authz.page-not-checked" in f
+    assert "authz.clean" not in f
+    assert "s=1" not in f["authz.page-not-checked"].evidence
+
+
+def test_out_of_scope_page_is_reported(monkeypatch):
+    import recon.modules.authz as authz
+    from recon.scope import ScopeViolation
+
+    def deny(*a, **kw):
+        raise ScopeViolation("evil.com")
+    monkeypatch.setattr(authz, "scoped_get", deny)
+    ctx = ScanContext(auth_header="Cookie: s=1", auth_pages=["/admin"])
+    f = _rules(run("https://x", ctx))
+    assert "out of scope" in f["authz.page-not-checked"].evidence

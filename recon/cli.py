@@ -88,7 +88,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Extra allowed hosts (comma-separated; *.example.com "
                         "supported). Default: target host only.")
     p.add_argument("--allow-private", action="store_true",
-                   help="Allow private/loopback addresses (for internal systems)")
+                   help="Let --scope wildcards reach hosts that resolve to "
+                        "private/loopback/link-local addresses (for internal "
+                        "systems). Hosts you name exactly are always allowed.")
     p.add_argument("--baseline", default=None,
                    help="Previous report.json or run directory to diff "
                         "new/resolved findings against")
