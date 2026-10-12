@@ -15,6 +15,14 @@ Format [Keep a Changelog](https://keepachangelog.com/) tabanlı; sürümleme
   CNAME / subdomain takeover tespiti. Yeni alt alan adları baseline diff ile
   "yeni" bulgu olur. `--scan-discovered` ile keşfedilenler de taranır;
   üçüncü taraf CNAME'ler asla yoklanmaz.
+- Uyarlanabilir hız sınırı: hedef 429/503 dönünce otomatik yavaşlama,
+  `Retry-After` desteği, ardından kademeli hızlanma; rapora
+  `meta.throttled_responses` yazılır.
+- `--resume`: modül bazlı checkpoint ile yarıda kalan taramayı sürdürme.
+- `--dast`: API şemasının yalnızca GET işlemlerini içeren ve sunucusu hedefe
+  sabitlenmiş kopyası üzerinde nuclei DAST.
+- Eklenti sistemi: `recon_orchestrator.modules` entry point grubu.
+- `recon trend`: taramalar arası geçmişi gösteren tek dosyalık HTML.
 - `subfinder` araç olarak eklendi (Docker imajında da var; `v2.17.0`).
 - Webhook bildirimi (`--notify`, `--notify-env`, `--notify-min-severity`):
   yalnızca yeni bulgularda; Slack/Discord/Telegram/genel JSON. Kanıt gönderilmez.

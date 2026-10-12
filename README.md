@@ -251,9 +251,39 @@ description.
 --runner native|docker|auto   # how external tools are executed
 --analyst anthropic           # optional AI executive summary (opt-in, needs an API key)
 --github-issues org/repo      # optional: file a GitHub issue per new finding
+--discover [--scan-discovered]  # subdomain inventory (+ scan each live host)
+--suppress-file ignore.yml    # accepted risks (default: .reconignore.yml)
+--notify-env RECON_WEBHOOK    # Slack/Discord/Telegram/webhook on NEW findings
+--resume                      # continue an interrupted scan; finished modules are reused
+--dast                        # nuclei fuzzing on the API spec's GET operations only
 ```
 
 Full detail on every flag: `recon --help`.
+
+The rate limit adapts on its own: if the target answers `429`/`503`, every
+module slows down (and honours `Retry-After`), then speeds back up to `--rate`.
+The run says so, because findings may be incomplete.
+
+`--dast` sends real attack payloads, so it is opt-in and deliberately narrow:
+nuclei receives a copy of the API spec that keeps only GET operations (nothing
+that changes data is fuzzed) and whose server address is rewritten to your
+target, so a spec pointing at production cannot redirect the fuzzer.
+
+**History across runs.** `recon trend` (or `recon trend <output_dir>`) writes
+`trend.html`: per host, a stacked bar of findings by severity for each run plus
+the same numbers in a table with new/resolved counts. It is a single file with
+no external resources, like the report.
+
+**Your own checks.** Another package can add modules without forking this one:
+
+```toml
+# pyproject.toml of your package
+[project.entry-points."recon_orchestrator.modules"]
+mycheck = "my_package.mycheck"   # a module with NAME, NEEDS_DOCKER, run(target, ctx)
+```
+
+Plugins appear in `recon modules`, run only when named (`-m headers,mycheck`),
+and can never replace a built-in module.
 
 ### Architecture (for contributors)
 
@@ -557,9 +587,41 @@ Bu listeyi ve her modülün güncel açıklamasını görmek için istediğin an
 --runner native|docker|auto   # dış araçların nasıl çalıştırılacağı
 --analyst anthropic           # opsiyonel AI yönetici özeti (opt-in, API anahtarı gerekir)
 --github-issues org/repo      # opsiyonel: her yeni bulgu için bir GitHub issue aç
+--discover [--scan-discovered]  # alt alan adı envanteri (+ her canlı host'u tara)
+--suppress-file ignore.yml    # kabul edilen riskler (varsayılan: .reconignore.yml)
+--notify-env RECON_WEBHOOK    # YENİ bulguda Slack/Discord/Telegram/webhook
+--resume                      # yarıda kalan taramayı sürdür; biten modüller yeniden çalışmaz
+--dast                        # nuclei fuzzing, yalnızca API şemasının GET işlemlerinde
 ```
 
 Her bayrağın tam detayı: `recon --help`.
+
+Hız sınırı kendini ayarlar: hedef `429`/`503` dönerse tüm modüller yavaşlar
+(`Retry-After`'a da uyar), sonra yeniden `--rate` değerine çıkar. Sonuçlar
+eksik olabileceği için tarama bunu ayrıca bildirir.
+
+`--dast` gerçek saldırı yükleri gönderir; bu yüzden isteğe bağlıdır ve bilerek
+dar tutulmuştur: nuclei, API şemasının yalnızca GET işlemlerini içeren (veri
+değiştiren hiçbir şey fuzz edilmez) ve sunucu adresi senin hedefine yeniden
+yazılmış bir kopyasını alır. Böylece production'ı gösteren bir şema fuzzer'ı
+başka yere yönlendiremez.
+
+**Taramalar arası geçmiş.** `recon trend` (veya `recon trend <çıktı_dizini>`)
+`trend.html` üretir: her host için, her taramadaki bulguların önem derecesine
+göre yığılmış çubuğu ve aynı sayıları yeni/çözülen bilgisiyle bir tabloda
+gösterir. Rapor gibi, dış kaynak yüklemeyen tek bir dosyadır.
+
+**Kendi kontrollerin.** Başka bir paket, bu projeyi fork'lamadan modül ekleyebilir:
+
+```toml
+# kendi paketinin pyproject.toml dosyası
+[project.entry-points."recon_orchestrator.modules"]
+mycheck = "my_package.mycheck"   # NAME, NEEDS_DOCKER, run(target, ctx) içeren bir modül
+```
+
+Eklentiler `recon modules` listesinde görünür, yalnızca adıyla çağrılınca
+çalışır (`-m headers,mycheck`) ve hiçbir zaman yerleşik bir modülün yerine
+geçemez.
 
 ### Mimari (katkıda bulunanlar için)
 
