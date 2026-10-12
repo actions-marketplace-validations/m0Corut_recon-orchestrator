@@ -144,3 +144,21 @@ def scoped_get(url: str, scope: Scope, *, timeout: int = 15,
             continue
         return resp
     return resp
+
+
+def scoped_post(url: str, scope: Scope, *, json=None, data=None,
+                headers: dict | None = None, timeout: int = 15, limiter=None):
+    """POST that enforces scope before sending. Does not follow redirects.
+
+    Used by probe modules (e.g. a single GraphQL introspection query). Scope is
+    checked on the target URL; a token is acquired from the limiter and the
+    response status is observed, like ``scoped_get``.
+    """
+    scope.check(url)
+    if limiter is not None:
+        limiter.acquire()
+    resp = requests.post(url, json=json, data=data, headers=headers or None,
+                         timeout=timeout, allow_redirects=False)
+    if limiter is not None and hasattr(limiter, "observe"):
+        limiter.observe(resp.status_code, resp.headers.get("Retry-After"))
+    return resp

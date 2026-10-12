@@ -141,3 +141,58 @@ def test_auth_headers_kept_on_same_origin_redirect(monkeypatch):
     scoped_get("https://example.com/app", Scope(["example.com"]),
                auth_headers={"Cookie": "s=1"})
     assert sent[1] == ("https://example.com/dashboard", {"Cookie": "s=1"})
+
+
+def test_scoped_get_no_follow_returns_first_3xx(monkeypatch):
+    # content.py relies on max_redirects=0 returning the 3xx itself (not following).
+    from recon.scope import scoped_get
+    sent = _record_gets(monkeypatch, [_Resp(302, "https://example.com/elsewhere")])
+    r = scoped_get("https://example.com/path", Scope(["example.com"]),
+                   max_redirects=0)
+    assert r.status_code == 302
+    assert r.headers["Location"] == "https://example.com/elsewhere"
+    assert len(sent) == 1          # the redirect target was never fetched
+
+
+def test_scoped_post_does_not_follow_redirect(monkeypatch):
+    import recon.scope as scope_mod
+    from recon.scope import Scope, scoped_post
+
+    calls = []
+
+    class R:
+        status_code = 302
+        headers = {"Location": "https://example.com/next"}
+
+    def fake_post(url, json, data, headers, timeout, allow_redirects):
+        calls.append((url, allow_redirects))
+        return R()
+    monkeypatch.setattr(scope_mod.requests, "post", fake_post)
+    monkeypatch.setattr(scope_mod, "_resolve", lambda h: ["93.184.216.34"])
+    r = scoped_post("https://example.com/graphql", Scope(["example.com"]))
+    assert r.status_code == 302 and len(calls) == 1 and calls[0][1] is False
+
+
+def test_scoped_post_checks_scope_and_observes(monkeypatch):
+    import recon.scope as scope_mod
+    from recon.ratelimit import RateLimiter
+    from recon.scope import Scope, ScopeViolation, scoped_post
+
+    sent = {}
+
+    class R:
+        status_code = 200
+        headers = {"Retry-After": "0"}
+
+    def fake_post(url, json, data, headers, timeout, allow_redirects):
+        sent["url"], sent["json"], sent["redirects"] = url, json, allow_redirects
+        return R()
+    monkeypatch.setattr(scope_mod.requests, "post", fake_post)
+    monkeypatch.setattr(scope_mod, "_resolve", lambda h: ["93.184.216.34"])
+    rl = RateLimiter(rate=0)
+    scoped_post("https://example.com/graphql", Scope(["example.com"]),
+                json={"query": "{__typename}"}, limiter=rl)
+    assert sent["url"].endswith("/graphql") and sent["json"]["query"] == "{__typename}"
+    assert sent["redirects"] is False
+    with pytest.raises(ScopeViolation):
+        scoped_post("https://evil.com/graphql", Scope(["example.com"]))
