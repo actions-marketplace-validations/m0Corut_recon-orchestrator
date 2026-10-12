@@ -36,6 +36,10 @@ CATALOG: dict[str, dict[str, dict[str, str]]] = {
         "detail": "{sources} kaynağından {domain} altında {resolved} ad çözüldü; "
                   "{live} canlı web host'u, {third} üçüncü taraf (yoklanmadı), "
                   "{private} özel adres (atlandı)."}},
+    "web.dast-ran": {"tr": {
+        "title": "API şeması üzerinde DAST çalıştı",
+        "detail": "nuclei DAST şablonları {spec} şemasındaki {ops} GET işlemine "
+                  "karşı çalıştırıldı."}},
     "authz.page-not-checked": {"tr": {
         "title": "Sayfa kontrol edilemedi: {page}",
         "detail": "Sayfa getirilemediği için erişim kontrolü doğrulanmadı: {reason}.",
@@ -150,6 +154,7 @@ UI: dict[str, dict[str, str]] = {
         "err_unknown_formats": "unknown format(s)",
         "err_config": "config",
         "running": "running...", "skipped": "skipped.",
+        "resumed": "reused from the interrupted run.",
         "scan_done": "Done. Report:", "no_findings_short": "no findings",
         "baseline_line": "baseline: {new} new, {resolved} resolved",
         "available_modules": "Available modules:",
@@ -173,6 +178,8 @@ UI: dict[str, dict[str, str]] = {
         "err_suppress": "suppression file",
         "notify_sent": "notification sent to {n} webhook(s)",
         "notify_error": "Notification error:",
+        "throttled": "target throttled {n} request(s) (429/503); the scan slowed "
+            "down automatically, results may be incomplete",
         "discovered_scanning": "scanning {n} discovered host(s)",
         "discovered_hint": "{n} live subdomain(s) found; add --scan-discovered "
             "to scan them (only if you are authorized for each)",
@@ -202,6 +209,7 @@ UI: dict[str, dict[str, str]] = {
         "err_unknown_formats": "bilinmeyen biçim(ler)",
         "err_config": "config",
         "running": "çalışıyor...", "skipped": "atlandı.",
+        "resumed": "yarıda kalan taramadan alındı.",
         "scan_done": "Bitti. Rapor:", "no_findings_short": "bulgu yok",
         "baseline_line": "baseline: {new} yeni, {resolved} çözülen",
         "available_modules": "Mevcut modüller:",
@@ -225,6 +233,8 @@ UI: dict[str, dict[str, str]] = {
         "err_suppress": "bastırma dosyası",
         "notify_sent": "{n} webhook'a bildirim gönderildi",
         "notify_error": "Bildirim hatası:",
+        "throttled": "hedef {n} isteği kısıtladı (429/503); tarama otomatik "
+            "yavaşladı, sonuçlar eksik olabilir",
         "discovered_scanning": "keşfedilen {n} host taranıyor",
         "discovered_hint": "{n} canlı alt alan adı bulundu; taramak için "
             "--scan-discovered ekle (yalnızca her biri için yetkin varsa)",

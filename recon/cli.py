@@ -15,6 +15,7 @@ import sys
 from datetime import datetime, timezone
 
 from . import __version__
+from .checkpoint import Checkpoint, path_for
 from .config import ConfigError, load_config, write_template
 from .context import ScanContext
 from .diff import (
@@ -111,6 +112,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--scan-discovered", action="store_true",
                    help="With --discover: scan each live in-house subdomain too "
                         "(only if you are authorized for all of them)")
+    p.add_argument("--resume", action="store_true",
+                   help="Reuse modules finished by an interrupted run of the same "
+                        "scan instead of re-running them")
     p.add_argument("--suppress-file", default=None,
                    help="Accepted-risk file (YAML; default: .reconignore.yml if present)")
     p.add_argument("--notify", action="append", default=None, metavar="URL",
@@ -137,6 +141,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="A path requiring login (repeatable); authz tests these")
     p.add_argument("--spec", default=None,
                    help="OpenAPI/Swagger spec URL/path (for the openapi module)")
+    p.add_argument("--dast", action="store_true",
+                   help="web module: also run nuclei DAST (fuzzing) templates on the "
+                        "GET operations of the API spec (sends attack payloads)")
     p.add_argument("--github-issues", default=None, metavar="OWNER/REPO",
                    help="Open an issue in this repo for new findings (needs GITHUB_TOKEN)")
     p.add_argument("--issue-min-severity", default="high",
@@ -221,13 +228,15 @@ def _scan_one(target: str, settings: dict) -> tuple[int, list[str]]:
 
     scope = Scope.for_target(target, extra=settings["scope"],
                              allow_private=settings["allow_private"])
+    limiter = RateLimiter(settings["rate"])
     ctx = ScanContext(rate=settings["rate"], http_timeout=15, scope=scope,
-                      limiter=RateLimiter(settings["rate"]),
+                      limiter=limiter,
                       runner=get_runner(settings["runner"]),
                       auth_header=settings["auth_header"],
                       auth_pages=settings["auth_pages"])
     if settings.get("spec"):
         ctx.extra["spec"] = settings["spec"]
+    ctx.dast = bool(settings.get("dast"))
     opts = settings["options"]
     for field in ("top_ports", "nuclei_tags", "nuclei_severity", "content_threads",
                   "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout",
@@ -250,14 +259,27 @@ def _scan_one(target: str, settings: dict) -> tuple[int, list[str]]:
                 print(f"[*] {target}: {msg} {t['running']}", file=sys.stderr)
         elif kind == "done" and not quiet:
             print(f"[✓] {msg}", file=sys.stderr)
+        elif kind == "resume":
+            ran.append(msg)
+            if not quiet:
+                print(f"[↺] {msg}: {t['resumed']}", file=sys.stderr)
         elif kind == "skip" and not quiet:
             print(f"[~] {msg}: {t['skipped']}", file=sys.stderr)
         elif kind == "error":
             print(f"[!] {msg}", file=sys.stderr)
 
+    checkpoint = Checkpoint(path_for(settings["output_dir"], _host_slug(target)),
+                            target, selected)
+    if settings.get("resume"):
+        completed = checkpoint.load()
+    else:
+        completed = {}
+        checkpoint.clear()          # a fresh run must not leave stale state behind
+
     result = run_scan(target, selected, ctx,
                       docker_ok=docker_available(), on_event=on_event,
-                      jobs=settings["jobs"], serial=settings["serial"])
+                      jobs=settings["jobs"], serial=settings["serial"],
+                      completed=completed, on_module_done=checkpoint.record)
 
     if settings.get("suppressions"):
         expired = apply_suppressions(result, settings["suppressions"])
@@ -268,6 +290,10 @@ def _scan_one(target: str, settings: dict) -> tuple[int, list[str]]:
     meta = {"modules": ran, "rate": settings["rate"], "version": __version__,
             "started_at": started_at,
             "ended_at": datetime.now(timezone.utc).isoformat()}
+    if limiter.throttled:
+        # the target answered 429/503: say so, since findings may be incomplete
+        meta["throttled_responses"] = limiter.throttled
+        print(f"[!] {t['throttled'].format(n=limiter.throttled)}", file=sys.stderr)
 
     # Optional: analyst summary (opt-in)
     if settings.get("analyst"):
@@ -302,6 +328,7 @@ def _scan_one(target: str, settings: dict) -> tuple[int, list[str]]:
 
     run_dir = _write_reports(result, meta, settings["output_dir"],
                              settings["lang"], diff, settings["formats"])
+    checkpoint.clear()
 
     # Optional: open GitHub issues for new findings
     if settings.get("github_issues") and diff is not None:
@@ -359,6 +386,21 @@ def _scan_one(target: str, settings: dict) -> tuple[int, list[str]]:
     return 0, discovered
 
 
+def _run_trend_command(argv: list[str]) -> int:
+    """`recon trend [output_dir]` - one HTML page with each host's history."""
+    from .trend import write_trend
+
+    p = argparse.ArgumentParser(prog="recon trend")
+    p.add_argument("output_dir", nargs="?", default="recon_runs")
+    p.add_argument("-o", "--out", default=None,
+                   help="Output file (default: <output_dir>/trend.html)")
+    p.add_argument("--last", type=int, default=20, help="Runs per host (default: 20)")
+    p.add_argument("--lang", default=DEFAULT_LANG, choices=["en", "tr"])
+    a = p.parse_args(argv)
+    print(write_trend(a.output_dir, a.out, a.last, a.lang))
+    return 0
+
+
 def _run_modules_command(lang: str) -> int:
     t = ui(lang)
     print(f"{t['available_modules']}\n")
@@ -395,12 +437,17 @@ def _run_doctor_command(lang: str) -> int:
 def main(argv: list[str] | None = None) -> int:
     raw = list(sys.argv[1:] if argv is None else argv)
     pre_lang = _peek_lang(raw)
+    from .modules import load_plugins
+    for warning in load_plugins():
+        print(f"[!] {warning}", file=sys.stderr)
     if raw and raw[0] == "diff":
         return _run_diff_command(raw[1:])
     if raw and raw[0] == "modules":
         return _run_modules_command(pre_lang)
     if raw and raw[0] == "doctor":
         return _run_doctor_command(pre_lang)
+    if raw and raw[0] == "trend":
+        return _run_trend_command(raw[1:])
     if raw and raw[0] == "init":
         path = raw[1] if len(raw) > 1 else "recon.yaml"
         t = ui(pre_lang)
@@ -458,6 +505,7 @@ def main(argv: list[str] | None = None) -> int:
                         if args.auth_header_env else args.auth_header),
         "auth_pages": args.auth_page,
         "spec": args.spec,
+        "dast": args.dast,
         "github_issues": args.github_issues,
         "issue_min_severity": args.issue_min_severity,
         "close_resolved": args.close_resolved,
@@ -466,6 +514,7 @@ def main(argv: list[str] | None = None) -> int:
         "analyst_base_url": args.analyst_base_url,
         "analyst_include_evidence": args.analyst_include_evidence,
         "quiet": args.quiet,
+        "resume": args.resume,
         "formats": ([f.strip() for f in args.format.split(",") if f.strip()]
                     if args.format else None),
         "options": cfg.get("options", {}),

@@ -134,6 +134,8 @@ def scoped_get(url: str, scope: Scope, *, timeout: int = 15,
             hop_headers.update(auth_headers)
         resp = requests.get(current, timeout=timeout, headers=hop_headers or None,
                             allow_redirects=False)
+        if limiter is not None and hasattr(limiter, "observe"):
+            limiter.observe(resp.status_code, resp.headers.get("Retry-After"))
         if resp.status_code in (301, 302, 303, 307, 308):
             loc = resp.headers.get("Location")
             if not loc:

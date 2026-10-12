@@ -53,6 +53,8 @@ def run(target: str, ctx: dict) -> list[Finding]:
             if limiter is not None:
                 limiter.acquire()
             r = requests.get(url, timeout=timeout, allow_redirects=False)
+            if limiter is not None and hasattr(limiter, "observe"):
+                limiter.observe(r.status_code, r.headers.get("Retry-After"))
         except Exception:
             return None
         if r.status_code == base_status or r.status_code == 404:

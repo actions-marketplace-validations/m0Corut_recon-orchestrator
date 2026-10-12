@@ -36,12 +36,18 @@ def run_scan(
     on_event: Callable[[str, str], None] | None = None,
     jobs: int | None = None,
     serial: bool = False,
+    completed: dict[str, list] | None = None,
+    on_module_done: Callable[[str, list], None] | None = None,
 ) -> ScanResult:
     """Run the named modules against `target` and return a ScanResult.
 
     on_event(kind, message): optional progress callback. kind is
     "run" | "skip" | "error". Never raises for a single module failure.
     jobs: max concurrent modules (default: all runnable). serial: force sequential.
+    completed: {module: findings} from an interrupted run; those modules are not
+      re-run and their findings are reused (resume).
+    on_module_done(name, findings): called after each module finishes without
+      raising, so a caller can checkpoint progress.
     """
     import threading
     import time
@@ -86,6 +92,19 @@ def run_scan(
 
     seen_fp: set[str] = set()
 
+    def merge(found: list) -> None:
+        for f in found:
+            if f.fingerprint in seen_fp:
+                continue
+            seen_fp.add(f.fingerprint)
+            result.add(f)
+
+    for name in list(runnable):
+        if completed and name in completed:
+            runnable.remove(name)
+            merge(completed[name])
+            emit("resume", name)
+
     def run_module(name: str) -> None:
         emit("run", name)
         start = time.monotonic()
@@ -98,11 +117,9 @@ def run_scan(
             return
         elapsed = time.monotonic() - start
         with lock:
-            for f in found:
-                if f.fingerprint in seen_fp:
-                    continue
-                seen_fp.add(f.fingerprint)
-                result.add(f)
+            merge(found)
+            if on_module_done:
+                on_module_done(name, found)
         emit("done", f"{name} ({elapsed:.1f}s, {len(found)})")
 
     if serial or jobs == 1 or len(runnable) <= 1:
