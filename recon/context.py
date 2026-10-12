@@ -32,6 +32,7 @@ class ScanContext:
     crawl_timeout: int = 300
     crawl_headless: bool = False
     idor_urls: list[str] | None = None
+    max_requests_per_module: int = 0  # 0 = unlimited; honoured by new probe modules
     # authenticated (authz) module inputs
     auth_header: str | None = None
     auth_pages: list[str] | None = None

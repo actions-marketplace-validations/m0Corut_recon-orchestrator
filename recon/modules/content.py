@@ -9,9 +9,8 @@ from __future__ import annotations
 import concurrent.futures as cf
 from urllib.parse import urljoin
 
-import requests
-
 from ..findings import Finding
+from ..scope import Scope, ScopeViolation, scoped_get
 
 NAME = "content"
 NEEDS_DOCKER = False
@@ -30,11 +29,11 @@ BUILTIN = [
 INTERESTING = {200, 201, 204, 301, 302, 401, 403, 405, 500}
 
 
-def _baseline(target: str, timeout: int) -> tuple[int, int]:
+def _baseline(target: str, scope, timeout: int, limiter) -> tuple[int, int]:
     """Return (status, content_length) for a random nonexistent path."""
     try:
-        r = requests.get(urljoin(target + "/", "zzz_nonexistent_" + "a" * 12),
-                         timeout=timeout, allow_redirects=False)
+        r = scoped_get(urljoin(target + "/", "zzz_nonexistent_" + "a" * 12),
+                       scope, timeout=timeout, max_redirects=0, limiter=limiter)
         return r.status_code, len(r.content)
     except Exception:
         return 404, 0
@@ -44,18 +43,17 @@ def run(target: str, ctx: dict) -> list[Finding]:
     timeout = ctx.get("http_timeout", 15)
     words = ctx.get("wordlist_entries") or BUILTIN
     base = target.rstrip("/") + "/"
-    base_status, _ = _baseline(target, timeout)
+    scope = ctx.get("scope") or Scope.allow_all()
     limiter = ctx.get("limiter")
+    base_status, _ = _baseline(target, scope, timeout, limiter)
 
     def probe(path: str):
         url = urljoin(base, path)
         try:
-            if limiter is not None:
-                limiter.acquire()
-            r = requests.get(url, timeout=timeout, allow_redirects=False)
-            if limiter is not None and hasattr(limiter, "observe"):
-                limiter.observe(r.status_code, r.headers.get("Retry-After"))
-        except Exception:
+            # max_redirects=0: a 301/302 is itself a signal, don't follow it
+            r = scoped_get(url, scope, timeout=timeout, max_redirects=0,
+                           limiter=limiter)
+        except (ScopeViolation, Exception):
             return None
         if r.status_code == base_status or r.status_code == 404:
             return None
