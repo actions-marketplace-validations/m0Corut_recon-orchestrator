@@ -17,6 +17,42 @@ DEFAULT_LANG = "en"
 # Only Turkish is listed; English comes from the module-authored text.
 CATALOG: dict[str, dict[str, dict[str, str]]] = {
     # crawl / cms / idor
+    # headers M1 — CSP/HSTS/cookie quality
+    "headers.csp-unsafe-inline": {"tr": {"title": "CSP zayıflığı: unsafe-inline",
+        "detail": "script-src nonce/hash olmadan 'unsafe-inline' izni veriyor."}},
+    "headers.csp-unsafe-eval": {"tr": {"title": "CSP zayıflığı: unsafe-eval",
+        "detail": "script-src 'unsafe-eval' izni veriyor."}},
+    "headers.csp-wildcard-source": {"tr": {"title": "CSP zayıflığı: joker kaynak",
+        "detail": "{token} geniş/joker bir kaynak içeriyor."}},
+    "headers.csp-missing-object-src": {"tr": {"title": "CSP: object-src yok",
+        "detail": "object-src yok ve default-src ile kısıtlanmamış."}},
+    "headers.csp-missing-base-uri": {"tr": {"title": "CSP: base-uri yok",
+        "detail": "base-uri direktifi yok."}},
+    "headers.csp-nonce-without-strict-dynamic": {"tr": {
+        "title": "CSP: nonce var, strict-dynamic yok",
+        "detail": "Nonce/hash var ama 'strict-dynamic' yok (allow-list bypass sınıfı)."}},
+    "headers.csp-report-only": {"tr": {"title": "CSP yalnızca Report-Only",
+        "detail": "CSP yalnızca rapor modunda; uygulanmıyor."}},
+    "headers.csp-unparseable": {"tr": {"title": "CSP ayrıştırılamadı",
+        "detail": "CSP başlığı ayrıştırılamadı."}},
+    "headers.hsts-short-max-age": {"tr": {"title": "HSTS max-age kısa",
+        "detail": "max-age={max_age} (< 15552000, ~180g)."}},
+    "headers.hsts-no-subdomains": {"tr": {"title": "HSTS includeSubDomains yok",
+        "detail": "Alt alan adları HSTS kapsamında değil."}},
+    "headers.hsts-over-http": {"tr": {"title": "HSTS HTTP üzerinden",
+        "detail": "Düz-HTTP yanıtındaki HSTS tarayıcılarca yok sayılır."}},
+    "headers.cookie-samesite-none-insecure": {"tr": {
+        "title": "Çerez SameSite=None, Secure yok: {cookie}",
+        "detail": "SameSite=None, Secure gerektirir; aksi halde reddedilir."}},
+    "headers.cookie-session-over-http": {"tr": {
+        "title": "Oturum çerezi HTTP üzerinden: {cookie}",
+        "detail": "Oturum çerezi düz-HTTP yanıtında ayarlandı."}},
+    "headers.cookie-broad-domain": {"tr": {
+        "title": "Çerez geniş alana kapsamlı: {cookie}",
+        "detail": "Domain={domain}, kardeş alt alan adlarını da kapsıyor."}},
+    "headers.cookie-no-host-prefix": {"tr": {
+        "title": "Oturum çerezinde __Host-/__Secure- öneki yok: {cookie}",
+        "detail": "Önek, çerezi fiksasyon/üzerine yazmaya karşı sertleştirir."}},
     "crawl.surface": {"tr": {
         "title": "Saldırı yüzeyi: {host} üzerinde {urls} endpoint",
         "detail": "Crawl {urls} host-içi URL buldu, {params} tanesi sorgu "
