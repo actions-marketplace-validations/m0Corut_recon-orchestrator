@@ -45,7 +45,8 @@ def run(target: str, ctx) -> list[Finding]:
                  depth=int(ctx.get("crawl_depth", 2)),
                  rate=int(ctx.get("rate", 20)),
                  timeout=int(ctx.get("crawl_timeout", 300)),
-                 max_urls=int(ctx.get("crawl_max_urls", 500)))
+                 max_urls=int(ctx.get("crawl_max_urls", 500)),
+                 headless=bool(ctx.get("crawl_headless", False)))
     if isinstance(getattr(ctx, "extra", None), dict):
         ctx.extra["crawled_urls"] = urls
     return build_findings(target, urls)

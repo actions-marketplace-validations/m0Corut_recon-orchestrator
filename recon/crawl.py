@@ -45,8 +45,15 @@ def with_params(urls: list[str]) -> list[str]:
 
 
 def crawl(target: str, runner, *, depth: int = 2, rate: int = 20,
-          timeout: int = 300, max_urls: int = 500) -> list[str]:
-    """Run katana against `target`; return discovered in-host URLs (capped)."""
+          timeout: int = 300, max_urls: int = 500, headless: bool = False) -> list[str]:
+    """Run katana against `target`; return discovered in-host URLs (capped).
+
+    headless=True drives a real browser so a single-page app's runtime API calls
+    are seen (static JS parsing misses them). It needs Chrome/Chromium available
+    to katana, which the all-in-one image installs; the stock katana image has no
+    browser, so headless there finds nothing. ``-nos`` runs the browser without a
+    sandbox (required as root in a container); ``-sc`` uses the system Chrome.
+    """
     if runner is None or not runner.can_run(NAME_TOOL):
         return []
     host = urlparse(target).hostname or target
@@ -61,5 +68,7 @@ def crawl(target: str, runner, *, depth: int = 2, rate: int = 20,
         "-c", "10",
         "-iqp",                   # include query params in the crawl surface
     ]
+    if headless:
+        args += ["-headless", "-nos", "-sc"]
     stdout = runner.run_capture(NAME_TOOL, args, timeout)
     return parse_katana(stdout, host)[:max_urls]

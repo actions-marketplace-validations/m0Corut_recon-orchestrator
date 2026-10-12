@@ -98,7 +98,7 @@ which modules you want:
 | DNS/email security (`dns`) and mail (`mail`) checks | the `[dns]` extra |
 | Port scanning, TLS audit, nuclei templates (`ports`/`tls`/`web`) | Docker **or** the tools installed natively |
 | Subdomain inventory (`--discover`) | nothing extra; the `[dns]` extra adds CNAME/takeover checks, and subfinder (Docker or native) adds more sources |
-| Endpoint crawl (`crawl` module) | katana (Docker or native) |
+| Endpoint crawl (`crawl` module) | katana (Docker or native); `--crawl-headless` also needs Chromium |
 | Injection fuzzing (`--dast`) | nuclei (Docker or native); an OpenAPI/Swagger spec **or** a crawl of the site |
 
 **Option A — install from PyPI (recommended):**
@@ -293,9 +293,10 @@ operations and whose server is rewritten to your target. With no spec, the site
 is crawled (katana) and only the discovered GET URLs that carry query
 parameters, on the target host, are fuzzed — nothing that changes data. The
 `crawl` module (`-m crawl`) runs the same crawl on its own to map the attack
-surface. Crawling parses linked JavaScript for endpoints; a JavaScript-heavy
-single-page app may still hide its API behind the browser, which a future
-headless mode would reach.
+surface. Crawling parses linked JavaScript for endpoints. A JavaScript-heavy single-page
+app builds its API calls at runtime, so add `--crawl-headless` to drive a real
+headless browser and discover those too (needs Chromium; the all-in-one image
+ships it). Headless is slower, so it is opt-in.
 
 **History across runs.** `recon trend` (or `recon trend <output_dir>`) writes
 `trend.html`: per host, a stacked bar of findings by severity for each run plus

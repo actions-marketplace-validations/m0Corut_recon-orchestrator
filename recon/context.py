@@ -30,6 +30,7 @@ class ScanContext:
     crawl_depth: int = 2
     crawl_max_urls: int = 500
     crawl_timeout: int = 300
+    crawl_headless: bool = False
     # authenticated (authz) module inputs
     auth_header: str | None = None
     auth_pages: list[str] | None = None
