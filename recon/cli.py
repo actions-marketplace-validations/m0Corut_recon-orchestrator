@@ -422,6 +422,9 @@ def _run_doctor_command(lang: str) -> int:
 def main(argv: list[str] | None = None) -> int:
     raw = list(sys.argv[1:] if argv is None else argv)
     pre_lang = _peek_lang(raw)
+    from .modules import load_plugins
+    for warning in load_plugins():
+        print(f"[!] {warning}", file=sys.stderr)
     if raw and raw[0] == "diff":
         return _run_diff_command(raw[1:])
     if raw and raw[0] == "modules":
