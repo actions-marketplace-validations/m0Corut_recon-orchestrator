@@ -10,6 +10,12 @@ Format [Keep a Changelog](https://keepachangelog.com/) tabanlı; sürümleme
 - Bastırma dosyası (`.reconignore.yml`, `--suppress-file`): gerekçe zorunlu,
   `expires` tarihi, rule_id glob, hedef ve fingerprint filtresi. Bastırılanlar
   sayımlara ve kapılara girmez, raporlarda ayrı listelenir.
+- Alt alan adı keşfi (`--discover`, `discover` modülü): crt.sh → Cert Spotter
+  yedekli sertifika şeffaflığı + varsa subfinder, canlı host yoklama, sahipsiz
+  CNAME / subdomain takeover tespiti. Yeni alt alan adları baseline diff ile
+  "yeni" bulgu olur. `--scan-discovered` ile keşfedilenler de taranır;
+  üçüncü taraf CNAME'ler asla yoklanmaz.
+- `subfinder` araç olarak eklendi (Docker imajında da var; `v2.17.0`).
 - Webhook bildirimi (`--notify`, `--notify-env`, `--notify-min-severity`):
   yalnızca yeni bulgularda; Slack/Discord/Telegram/genel JSON. Kanıt gönderilmez.
 

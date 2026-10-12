@@ -24,6 +24,8 @@ class ScanContext:
     nuclei_tags: str | None = None
     content_threads: int = 10
     wordlist_entries: list[str] | None = None
+    discover_max_hosts: int = 200
+    discover_timeout: int = 300
     # authenticated (authz) module inputs
     auth_header: str | None = None
     auth_pages: list[str] | None = None

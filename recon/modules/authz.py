@@ -95,6 +95,7 @@ def run(target: str, ctx: dict) -> list[Finding]:
                 recommendation="Check the path and that the target is reachable, "
                                "then re-run.",
                 rule_id=f"{NAME}.page-not-checked",
+                params={"page": page, "reason": reason},
             ))
             continue
         findings += analyze_pair(page, ra.status_code, len(ra.content),

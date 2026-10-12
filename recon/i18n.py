@@ -16,6 +16,31 @@ DEFAULT_LANG = "en"
 # msg_key -> {lang -> {title?, detail?, recommendation?}} with {param} placeholders.
 # Only Turkish is listed; English comes from the module-authored text.
 CATALOG: dict[str, dict[str, dict[str, str]]] = {
+    # discover
+    "discover.host": {"tr": {
+        "title": "Canlı host: {host}",
+        "detail": "{url} HTTP {status} yanıtı veriyor."}},
+    "discover.takeover": {"tr": {
+        "title": "Olası subdomain takeover: {host}",
+        "detail": "{host}, çözülmeyen {target} adresine CNAME. Bu sağlayıcıda "
+                  "adı genelde herkes alabilir; saldırgan alt alan adında içerik "
+                  "yayınlayabilir.",
+        "recommendation": "DNS kaydını sil ya da işaret ettiği kaynağı geri al."}},
+    "discover.dangling-cname": {"tr": {
+        "title": "Sahipsiz CNAME: {host}",
+        "detail": "{host}, çözülmeyen {target} adresine CNAME. Bu ad başkası "
+                  "tarafından alınabilirse alt alan adını o kontrol eder.",
+        "recommendation": "DNS kaydını sil ya da işaret ettiği kaynağı geri al."}},
+    "discover.summary": {"tr": {
+        "title": "{domain} için keşif özeti",
+        "detail": "{sources} kaynağından {domain} altında {resolved} ad çözüldü; "
+                  "{live} canlı web host'u, {third} üçüncü taraf (yoklanmadı), "
+                  "{private} özel adres (atlandı)."}},
+    "authz.page-not-checked": {"tr": {
+        "title": "Sayfa kontrol edilemedi: {page}",
+        "detail": "Sayfa getirilemediği için erişim kontrolü doğrulanmadı: {reason}.",
+        "recommendation": "Yolu ve hedefin erişilebilir olduğunu kontrol edip "
+                          "yeniden çalıştır."}},
     # headers
     "headers.missing-hsts": {"tr": {
         "title": "Güvenlik başlığı eksik: Strict-Transport-Security",
@@ -148,6 +173,9 @@ UI: dict[str, dict[str, str]] = {
         "err_suppress": "suppression file",
         "notify_sent": "notification sent to {n} webhook(s)",
         "notify_error": "Notification error:",
+        "discovered_scanning": "scanning {n} discovered host(s)",
+        "discovered_hint": "{n} live subdomain(s) found; add --scan-discovered "
+            "to scan them (only if you are authorized for each)",
     },
     "tr": {
         "report_title": "Güvenlik Tarama Raporu",
@@ -197,6 +225,9 @@ UI: dict[str, dict[str, str]] = {
         "err_suppress": "bastırma dosyası",
         "notify_sent": "{n} webhook'a bildirim gönderildi",
         "notify_error": "Bildirim hatası:",
+        "discovered_scanning": "keşfedilen {n} host taranıyor",
+        "discovered_hint": "{n} canlı alt alan adı bulundu; taramak için "
+            "--scan-discovered ekle (yalnızca her biri için yetkin varsa)",
     },
 }
 
@@ -214,6 +245,8 @@ MODULE_DESC_TR: dict[str, str] = {
     "authz": "Giriş sonrası (salt-okunur) erişim kontrolü — kimlik bilgisi gerekir",
     "openapi": "OpenAPI/Swagger şema-güdümlü endpoint kapsamı (salt-okunur)",
     "mail": "SMTP/mail: STARTTLS, MTA-STS, TLS-RPT (kapsam korumalı, salt-okunur)",
+    "discover": "Alt alan adı envanteri (CT kayıtları + varsa subfinder), canlı "
+                "host yoklama, sahipsiz CNAME / takeover kontrolü",
 }
 
 

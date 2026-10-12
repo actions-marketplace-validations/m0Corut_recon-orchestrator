@@ -61,8 +61,13 @@ REGISTRY: dict[str, ModuleSpec] = {
     "mail": ModuleSpec(
         "mail", "recon.modules.mail", False, True,
         "SMTP/mail: STARTTLS, MTA-STS, TLS-RPT (scope-respecting, read-only)"),
+    "discover": ModuleSpec(
+        "discover", "recon.modules.discover", False, True,
+        "Subdomain inventory (CT logs + subfinder if available), live-host probe, "
+        "dangling CNAME / takeover check"),
 }
 
 # Default execution order: cheap pure-Python modules first, Docker ones after.
-# 'authz' is opt-in (needs credentials), so it is not in the default set.
+# 'authz' is opt-in (needs credentials) and 'discover' widens what is touched
+# (use --discover), so neither is in the default set.
 DEFAULT_ORDER = ["headers", "cors", "content", "dns", "ports", "tls", "web"]
