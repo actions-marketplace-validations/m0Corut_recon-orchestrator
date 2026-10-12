@@ -44,6 +44,22 @@
         }
       }
     },
-    "errors": { "type": "array", "items": { "type": "string" } }
+    "errors": { "type": "array", "items": { "type": "string" } },
+    "suppressed": {
+      "description": "Findings hidden by a suppression file (excluded from counts and gates).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule_id", "severity", "fingerprint", "reason"],
+        "properties": {
+          "rule_id": { "type": "string" },
+          "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+          "module": { "type": "string" },
+          "title": { "type": "string" },
+          "fingerprint": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    }
   }
 }

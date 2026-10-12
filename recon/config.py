@@ -17,6 +17,7 @@ except ImportError:  # pragma: no cover - yaml is a runtime dependency
 TOP_KEYS = {
     "targets", "scope", "modules", "rate", "allow_private", "lang",
     "output_dir", "fail_on", "fail_on_new", "options",
+    "suppress_file", "notify_env", "notify_min_severity",
 }
 OPTION_KEYS = {
     "top_ports", "nuclei_tags", "nuclei_severity", "wordlist", "content_threads",
@@ -87,6 +88,14 @@ output_dir: recon_runs
 # CI exit-code gates (optional):
 # fail_on: high        # any finding at this severity+ -> exit 2
 # fail_on_new: medium  # a NEW finding at this severity+ -> exit 2
+
+# Accepted risks (default: .reconignore.yml if it exists):
+# suppress_file: .reconignore.yml
+
+# Webhook notification on NEW findings. The URL is a secret, so it is read from
+# an environment variable (comma-separated for several webhooks):
+# notify_env: RECON_WEBHOOK
+# notify_min_severity: medium
 
 # Per-module options (optional):
 # options:

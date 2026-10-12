@@ -182,6 +182,30 @@ Or drop in the reusable GitHub Action:
 `.github/workflows/scan.yml` in this repo is a working example (weekly
 schedule + manual trigger) you can copy into your own project.
 
+**Accepted risks.** Some findings are known and deliberately accepted. List
+them in `.reconignore.yml` (picked up automatically, or pass
+`--suppress-file`). Each entry needs a reason; an optional `expires` date
+makes the finding come back, and fail CI again, once the review date passes.
+Suppressed findings are left out of counts and `--fail-on*` gates but still
+listed in every report under "Suppressed".
+
+```yaml
+- rule_id: headers.missing-csp        # glob allowed: "headers.*"
+  reason: "CSP rollout tracked in JIRA-123"
+  expires: 2027-01-31
+- rule_id: ports.notable
+  reason: "Redis is firewalled to the VPN"
+  fingerprint: 3f2a9c...              # optional: just this one instance
+```
+
+**Notifications.** A scheduled scan is only useful if someone sees it.
+`--notify-env RECON_WEBHOOK` reads one or more webhook URLs (comma-separated)
+from an environment variable and posts a short message only when there are
+NEW findings at `--notify-min-severity` (default `medium`) or above. Slack,
+Discord and Telegram (`https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<ID>`)
+URLs are detected automatically; anything else receives a generic JSON
+payload. Messages contain titles and rule ids, never evidence.
+
 ### What each module actually checks
 
 | Module | Needs | What it looks for |
@@ -446,6 +470,31 @@ Ya da yeniden kullanılabilir GitHub Action'ı ekle:
 
 Bu repodaki `.github/workflows/scan.yml`, kendi projene kopyalayabileceğin
 çalışan bir örnektir (haftalık zamanlama + elle tetikleme).
+
+**Kabul edilen riskler.** Bazı bulgular bilinir ve bilerek kabul edilir.
+Bunları `.reconignore.yml` dosyasına yaz (otomatik okunur, ya da
+`--suppress-file` ver). Her girdi bir gerekçe ister; isteğe bağlı `expires`
+tarihi geçince bulgu geri gelir ve CI'ı yeniden kırar. Bastırılan bulgular
+sayımlara ve `--fail-on*` kapılarına girmez ama her raporda "Bastırılanlar"
+başlığı altında listelenir.
+
+```yaml
+- rule_id: headers.missing-csp        # glob kullanılabilir: "headers.*"
+  reason: "CSP geçişi JIRA-123'te takip ediliyor"
+  expires: 2027-01-31
+- rule_id: ports.notable
+  reason: "Redis yalnızca VPN'e açık"
+  fingerprint: 3f2a9c...              # isteğe bağlı: yalnızca bu örnek
+```
+
+**Bildirimler.** Zamanlanmış tarama ancak biri sonucu görürse işe yarar.
+`--notify-env RECON_WEBHOOK` bir ortam değişkeninden bir veya daha fazla
+webhook adresi okur (virgülle ayrılmış) ve yalnızca `--notify-min-severity`
+(varsayılan `medium`) ve üstünde YENİ bulgu varsa kısa bir mesaj gönderir.
+Slack, Discord ve Telegram
+(`https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<ID>`) adresleri
+otomatik tanınır; diğerlerine genel bir JSON gönderilir. Mesajlarda başlık ve
+rule_id bulunur, kanıt asla bulunmaz.
 
 ### Her modül tam olarak ne kontrol ediyor
 

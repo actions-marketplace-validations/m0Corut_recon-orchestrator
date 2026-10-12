@@ -141,6 +141,13 @@ UI: dict[str, dict[str, str]] = {
         "github_result": "GitHub: {created} issue(s) opened, {closed} closed.",
         "github_error": "GitHub issue error:",
         "github_skipped_no_token": "GITHUB_TOKEN missing; issue creation skipped.",
+        "suppressed": "Suppressed (accepted risks)", "reason": "Reason",
+        "suppressed_line": "{n} finding(s) suppressed",
+        "suppress_expired": "suppression for {rule} expired on {date}; "
+            "it no longer applies",
+        "err_suppress": "suppression file",
+        "notify_sent": "notification sent to {n} webhook(s)",
+        "notify_error": "Notification error:",
     },
     "tr": {
         "report_title": "Güvenlik Tarama Raporu",
@@ -183,6 +190,13 @@ UI: dict[str, dict[str, str]] = {
         "github_result": "GitHub: {created} issue açıldı, {closed} kapatıldı.",
         "github_error": "GitHub issue hatası:",
         "github_skipped_no_token": "GITHUB_TOKEN yok; issue oluşturma atlandı.",
+        "suppressed": "Bastırılanlar (kabul edilen riskler)", "reason": "Gerekçe",
+        "suppressed_line": "{n} bulgu bastırıldı",
+        "suppress_expired": "{rule} için bastırmanın süresi {date} tarihinde "
+            "doldu; artık uygulanmıyor",
+        "err_suppress": "bastırma dosyası",
+        "notify_sent": "{n} webhook'a bildirim gönderildi",
+        "notify_error": "Bildirim hatası:",
     },
 }
 

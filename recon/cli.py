@@ -33,6 +33,12 @@ from .report import to_json, to_markdown, to_sarif
 from .report_html import to_html
 from .runner import get_runner
 from .scope import Scope
+from .suppress import (
+    SuppressionError,
+    apply_suppressions,
+    load_suppressions,
+    resolve_path,
+)
 
 _RENDERERS = {
     "md": ("report.md", to_markdown),
@@ -99,6 +105,15 @@ def build_parser() -> argparse.ArgumentParser:
                         "run for this host as a baseline")
     p.add_argument("--fail-on-new", default=None,
                    help="Exit code 2 if a NEW finding reaches this severity")
+    p.add_argument("--suppress-file", default=None,
+                   help="Accepted-risk file (YAML; default: .reconignore.yml if present)")
+    p.add_argument("--notify", action="append", default=None, metavar="URL",
+                   help="Webhook to notify on new findings (Slack/Discord/Telegram/"
+                        "generic JSON; repeatable)")
+    p.add_argument("--notify-env", default=None, metavar="VAR",
+                   help="Read webhook URL(s) from this env var, comma-separated (safer)")
+    p.add_argument("--notify-min-severity", default=None,
+                   help="Only notify for new findings at this severity+ (default: medium)")
     p.add_argument("--jobs", type=int, default=None,
                    help="Max concurrent modules (default: all)")
     p.add_argument("--serial", action="store_true",
@@ -132,6 +147,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-v", "--version", action="version",
                    version=f"recon-orchestrator {__version__}")
     return p
+
+
+def _notify_urls(args, cfg: dict) -> list[str]:
+    urls = list(args.notify or [])
+    env_var = args.notify_env or cfg.get("notify_env")
+    if env_var:
+        urls += [u.strip() for u in os.environ.get(env_var, "").split(",") if u.strip()]
+    return urls
 
 
 def _load_wordlist(path: str) -> list[str]:
@@ -225,6 +248,12 @@ def _scan_one(target: str, settings: dict) -> int:
                       docker_ok=docker_available(), on_event=on_event,
                       jobs=settings["jobs"], serial=settings["serial"])
 
+    if settings.get("suppressions"):
+        expired = apply_suppressions(result, settings["suppressions"])
+        for rule in expired:
+            print(f"[!] {t['suppress_expired'].format(rule=rule.rule_id, date=rule.expires)}",
+                  file=sys.stderr)
+
     meta = {"modules": ran, "rate": settings["rate"], "version": __version__,
             "started_at": started_at,
             "ended_at": datetime.now(timezone.utc).isoformat()}
@@ -282,10 +311,28 @@ def _scan_one(target: str, settings: dict) -> int:
             except Exception as e:  # noqa: BLE001
                 print(f"[!] {t['github_error']} {e}", file=sys.stderr)
 
+    # Optional: webhook notification for new findings
+    if settings.get("notify_urls"):
+        from .i18n import localize
+        from .notify import select_new, send
+        candidates = diff.new if diff is not None else result.sorted()
+        to_send = select_new(candidates, settings["notify_min_severity"])
+        if to_send:
+            errs = send(settings["notify_urls"], target, to_send, run_dir,
+                        localize, settings["lang"])
+            for err in errs:
+                print(f"[!] {t['notify_error']} {err}", file=sys.stderr)
+            sent = len(settings["notify_urls"]) - len(errs)
+            if sent and not quiet:
+                print(f"[+] {t['notify_sent'].format(n=sent)}", file=sys.stderr)
+
     counts = result.counts()
     summary = ", ".join(f"{counts[s]} {s}" for s in counts if counts[s]) or t["no_findings_short"]
     print(f"\n[+] {t['scan_done']} {run_dir}", file=sys.stderr)
     print(f"    {summary}", file=sys.stderr)
+    if result.suppressed:
+        print(f"    {t['suppressed_line'].format(n=len(result.suppressed))}",
+              file=sys.stderr)
     if diff is not None:
         print(f"    {t['baseline_line'].format(new=len(diff.new), resolved=len(diff.resolved))}",
               file=sys.stderr)
@@ -410,7 +457,18 @@ def main(argv: list[str] | None = None) -> int:
         "formats": ([f.strip() for f in args.format.split(",") if f.strip()]
                     if args.format else None),
         "options": cfg.get("options", {}),
+        "notify_urls": _notify_urls(args, cfg),
+        "notify_min_severity": (args.notify_min_severity
+                                or cfg.get("notify_min_severity", "medium")),
+        "suppressions": [],
     }
+    suppress_path = resolve_path(args.suppress_file or cfg.get("suppress_file"))
+    if suppress_path:
+        try:
+            settings["suppressions"] = load_suppressions(suppress_path)
+        except SuppressionError as e:
+            print(f"{t['err']} ({t['err_suppress']}): {e}", file=sys.stderr)
+            return 1
     if settings["formats"]:
         bad = [f for f in settings["formats"] if f not in _RENDERERS]
         if bad:
