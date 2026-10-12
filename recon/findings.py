@@ -79,6 +79,13 @@ class ScanResult:
     target: str
     findings: list[Finding] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    # (finding, reason) pairs hidden by a suppression file; excluded from counts
+    # and CI gates but still listed in reports
+    suppressed: list[tuple[Finding, str]] = field(default_factory=list)
+
+    @property
+    def suppressed_fingerprints(self) -> set[str]:
+        return {f.fingerprint for f, _ in self.suppressed}
 
     def add(self, *findings: Finding) -> None:
         self.findings.extend(findings)

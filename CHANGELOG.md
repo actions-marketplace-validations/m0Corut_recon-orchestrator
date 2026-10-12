@@ -6,6 +6,13 @@ Format [Keep a Changelog](https://keepachangelog.com/) tabanlı; sürümleme
 
 ## [Unreleased]
 
+### Added
+- Bastırma dosyası (`.reconignore.yml`, `--suppress-file`): gerekçe zorunlu,
+  `expires` tarihi, rule_id glob, hedef ve fingerprint filtresi. Bastırılanlar
+  sayımlara ve kapılara girmez, raporlarda ayrı listelenir.
+- Webhook bildirimi (`--notify`, `--notify-env`, `--notify-min-severity`):
+  yalnızca yeni bulgularda; Slack/Discord/Telegram/genel JSON. Kanıt gönderilmez.
+
 ### Security
 - `authz`: kimlik başlığı yalnızca aynı origin'e (şema, host, port) gönderilir;
   başka bir kapsam içi host'a veya https→http yönlendirmede düşürülür

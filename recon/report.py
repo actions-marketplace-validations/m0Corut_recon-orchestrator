@@ -65,6 +65,14 @@ def to_markdown(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG,
         if rec:
             lines.append(f"- **{t['recommendation']}:** {rec}")
         lines.append("")
+    if result.suppressed:
+        lines += [f"## {t['suppressed']}", "",
+                  f"| {t['severity']} | {t['title_col']} | rule_id | {t['reason']} |",
+                  "|------|--------|---------|--------|"]
+        for f, reason in result.suppressed:
+            title, _, _ = localize(f, lang)
+            lines.append(f"| {f.severity.upper()} | {title} | `{f.rule_id}` | {reason} |")
+        lines.append("")
     if result.errors:
         lines += [f"## {t['errors']}", ""]
         lines += [f"- {e}" for e in result.errors]
@@ -93,6 +101,13 @@ def to_json(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG,
         "findings": findings,
         "errors": result.errors,
     }
+    if result.suppressed:
+        out["suppressed"] = [
+            {"rule_id": f.rule_id, "severity": f.severity, "module": f.module,
+             "title": localize(f, lang)[0], "fingerprint": f.fingerprint,
+             "reason": reason}
+            for f, reason in result.suppressed
+        ]
     if diff is not None:
         out["diff"] = {"new": len(diff.new), "resolved": len(diff.resolved),
                        "unchanged": len(diff.unchanged)}
