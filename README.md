@@ -97,37 +97,59 @@ which modules you want:
 | The core checks (headers, CORS, content discovery) | Just Python + pip |
 | DNS/email security (`dns`) and mail (`mail`) checks | the `[dns]` extra |
 | Port scanning, TLS audit, nuclei templates (`ports`/`tls`/`web`) | Docker **or** the tools installed natively |
+| Subdomain inventory (`--discover`) | nothing extra; the `[dns]` extra adds CNAME/takeover checks, and subfinder (Docker or native) adds more sources |
+| API fuzzing (`--dast`) | nuclei (Docker or native) and an OpenAPI/Swagger spec |
 
-**Option A — clone and install (recommended for first try):**
+**Option A — install from PyPI (recommended):**
+
+```bash
+pip install "recon-orchestrator[dns]"            # omit [dns] if you don't need dns/mail
+pip install "recon-orchestrator[dns]==1.1.0"     # or pin an exact version (e.g. in CI)
+pip install -U "recon-orchestrator[dns]"         # upgrade an existing install
+```
+
+This installs a `recon` command on your PATH; `recon --version` shows which
+version you have.
+
+**Option B — clone and install (to read or change the code):**
 
 ```bash
 git clone https://github.com/m0Corut/recon-orchestrator
 cd recon-orchestrator
-pip install ".[dns]"          # omit [dns] if you don't need the dns/mail modules
-```
-
-This installs a `recon` command on your PATH.
-
-**Option B — install from PyPI (no cloning needed):**
-
-```bash
-pip install "recon-orchestrator[dns]"
+pip install ".[dns]"
 ```
 
 **Option C — Docker image (zero local setup, tools included):**
 
 If you don't want to install Python packages or Docker-pull individual tool
-images, use the all-in-one image. It bundles nmap, nuclei, and testssl.sh as
-native binaries inside the container, so it needs *only* Docker itself:
+images, use the all-in-one image. It bundles nmap, nuclei, testssl.sh and
+subfinder as native binaries inside the container, so it needs *only* Docker
+itself:
 
 ```bash
-docker run --rm -v "$PWD:/work" ghcr.io/m0corut/recon-orchestrator \
+docker run --rm -v "$PWD:/work" ghcr.io/m0corut/recon-orchestrator:1.1.0 \
   https://example.com --authorized
 ```
+
+Use a version tag such as `:1.1.0` so a scan does not change underneath you;
+`:latest` always points at the newest release.
+
+**Tool versions.** When the tools run through Docker, recon uses pinned
+images (nmap 7.98, nuclei v3.11.1, testssl.sh 3.2, subfinder v2.17.0), so the
+same recon version always scans with the same tools. Tools you installed
+natively are used as they are, whatever their version. With the default
+`--runner auto`, native binaries are used when nmap, nuclei and testssl.sh are
+all installed; otherwise Docker is used. subfinder is optional either way.
 
 **Checking your setup:** after installing, run `recon doctor` — it tells you
 exactly which tools and optional packages it can see, so you know in advance
 which modules will actually run.
+
+**Upgrading from 1.0.** Nothing breaks: every new feature in 1.1 is off until
+you ask for it (`--discover`, `--dast`, `--notify-env`, `--resume`), with one
+exception: if a `.reconignore.yml` file exists in the directory you scan from,
+it is now read automatically. Scans also keep a small checkpoint in
+`recon_runs/.partial/` while they run, and remove it when they finish.
 
 ### Your first scan, step by step
 
@@ -432,37 +454,59 @@ olarak opsiyoneldir:
 | Temel kontroller (headers, CORS, içerik keşfi) | Sadece Python + pip |
 | DNS/e-posta güvenliği (`dns`) ve mail (`mail`) kontrolleri | `[dns]` extra |
 | Port taraması, TLS denetimi, nuclei şablonları (`ports`/`tls`/`web`) | Docker **ya da** araçların native kurulu olması |
+| Alt alan adı envanteri (`--discover`) | ek bir şey gerekmez; `[dns]` extra CNAME/takeover kontrollerini, subfinder (Docker ya da native) ek kaynakları ekler |
+| API fuzzing (`--dast`) | nuclei (Docker ya da native) ve bir OpenAPI/Swagger şeması |
 
-**Seçenek A — klonla ve kur (ilk deneme için önerilen):**
+**Seçenek A — PyPI'dan kur (önerilen):**
+
+```bash
+pip install "recon-orchestrator[dns]"            # dns/mail gerekmiyorsa [dns]'i çıkar
+pip install "recon-orchestrator[dns]==1.1.0"     # ya da tam sürümü sabitle (ör. CI'da)
+pip install -U "recon-orchestrator[dns]"         # mevcut kurulumu güncelle
+```
+
+Bu, PATH'ine bir `recon` komutu kurar; hangi sürümün kurulu olduğunu
+`recon --version` gösterir.
+
+**Seçenek B — klonla ve kur (kodu okumak ya da değiştirmek için):**
 
 ```bash
 git clone https://github.com/m0Corut/recon-orchestrator
 cd recon-orchestrator
-pip install ".[dns]"          # dns/mail modülleri gerekmiyorsa [dns]'i çıkar
-```
-
-Bu, PATH'ine bir `recon` komutu kurar.
-
-**Seçenek B — PyPI'dan kur (klonlamaya gerek yok):**
-
-```bash
-pip install "recon-orchestrator[dns]"
+pip install ".[dns]"
 ```
 
 **Seçenek C — Docker imajı (yerel kurulum sıfır, araçlar dahil):**
 
 Python paketleri kurmak veya tek tek araç imajlarını çekmek istemiyorsan,
-hepsi-bir-arada imajı kullan. nmap, nuclei ve testssl.sh'ı container içinde
-native binary olarak barındırır, yani *sadece* Docker'ın kendisi gerekir:
+hepsi-bir-arada imajı kullan. nmap, nuclei, testssl.sh ve subfinder'ı
+container içinde native binary olarak barındırır, yani *sadece* Docker'ın
+kendisi gerekir:
 
 ```bash
-docker run --rm -v "$PWD:/work" ghcr.io/m0corut/recon-orchestrator \
+docker run --rm -v "$PWD:/work" ghcr.io/m0corut/recon-orchestrator:1.1.0 \
   https://ornek.com --authorized
 ```
+
+Taramanın habersizce değişmemesi için `:1.1.0` gibi bir sürüm etiketi kullan;
+`:latest` her zaman en yeni sürümü gösterir.
+
+**Araç sürümleri.** Araçlar Docker üzerinden çalıştığında recon sabitlenmiş
+imajlar kullanır (nmap 7.98, nuclei v3.11.1, testssl.sh 3.2, subfinder
+v2.17.0); böylece aynı recon sürümü hep aynı araçlarla tarar. Native kurduğun
+araçlar ise sürümü ne olursa olsun olduğu gibi kullanılır. Varsayılan
+`--runner auto` ayarında nmap, nuclei ve testssl.sh'ın üçü de native kuruluysa
+onlar, değilse Docker kullanılır. subfinder her iki durumda da isteğe bağlıdır.
 
 **Kurulumunu kontrol etmek:** kurduktan sonra `recon doctor` çalıştır —
 tam olarak hangi araçları ve opsiyonel paketleri görebildiğini söyler, böylece
 hangi modüllerin gerçekten çalışacağını önceden bilirsin.
+
+**1.0'dan yükseltme.** Hiçbir şey bozulmaz: 1.1'deki yeni özelliklerin hepsi
+sen istemedikçe kapalıdır (`--discover`, `--dast`, `--notify-env`,
+`--resume`). Tek istisna: tarama yaptığın dizinde bir `.reconignore.yml`
+dosyası varsa artık otomatik okunur. Ayrıca taramalar çalışırken
+`recon_runs/.partial/` altında küçük bir checkpoint tutar ve bitince siler.
 
 ### Adım adım ilk tarama
 
