@@ -53,6 +53,21 @@ CATALOG: dict[str, dict[str, dict[str, str]]] = {
     "headers.cookie-no-host-prefix": {"tr": {
         "title": "Oturum çerezinde __Host-/__Secure- öneki yok: {cookie}",
         "detail": "Önek, çerezi fiksasyon/üzerine yazmaya karşı sertleştirir."}},
+    "csrf.form-without-token": {"tr": {
+        "title": "CSRF token'ı olmayan durum değiştiren form",
+        "detail": "POST/PUT/PATCH/DELETE formunda anti-CSRF token'ı ve SameSite "
+                  "oturum çerezi yok; cross-site sahte istekle tetiklenebilir."}},
+    "csrf.form-without-token-samesite-only": {"tr": {
+        "title": "CSRF token'ı yok (yalnızca SameSite koruması)",
+        "detail": "Anti-CSRF token'ı yok ama SameSite oturum çerezi kısmi koruma "
+                  "sağlıyor. Derinlemesine savunma için token ekle."}},
+    "csrf.login-form-without-token": {"tr": {
+        "title": "CSRF token'ı olmayan giriş formu",
+        "detail": "Giriş formunda anti-CSRF token'ı yok (login-CSRF riski)."}},
+    "csrf.no-forms-found": {"tr": {
+        "title": "HTML form bulunamadı",
+        "detail": "Değerlendirilecek HTML form yok (JSON API / SPA fetch ile "
+                  "gönderir; bu pasif kontrol bunu kapsamaz)."}},
     "crawl.surface": {"tr": {
         "title": "Saldırı yüzeyi: {host} üzerinde {urls} endpoint",
         "detail": "Crawl {urls} host-içi URL buldu, {params} tanesi sorgu "
@@ -310,6 +325,7 @@ MODULE_DESC_TR: dict[str, str] = {
     "discover": "Alt alan adı envanteri (CT kayıtları + varsa subfinder), canlı "
                 "host yoklama, sahipsiz CNAME / takeover kontrolü",
     "crawl": "Endpoint/parametre haritası için siteyi tarar (katana)",
+    "csrf": "HTML formlarında CSRF koruması kontrolü (pasif, salt-okunur)",
     "cms": "CMS tespiti + WordPress ifşa kontrolleri (salt-okunur)",
     "idor": "IDOR / nesne düzeyi yetki kontrolü taraması (salt-okunur, opt-in)",
 }

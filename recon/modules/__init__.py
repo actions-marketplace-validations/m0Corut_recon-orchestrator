@@ -74,6 +74,9 @@ REGISTRY: dict[str, ModuleSpec] = {
     "idor": ModuleSpec(
         "idor", "recon.modules.idor", False, True,
         "IDOR / broken object-level authorization probe (read-only, opt-in)"),
+    "csrf": ModuleSpec(
+        "csrf", "recon.modules.csrf", False, True,
+        "CSRF protection check on HTML forms (passive, read-only)"),
 }
 
 # Default execution order: cheap pure-Python modules first, Docker ones after.
