@@ -15,6 +15,7 @@ import sys
 from datetime import datetime, timezone
 
 from . import __version__
+from .checkpoint import Checkpoint, path_for
 from .config import ConfigError, load_config, write_template
 from .context import ScanContext
 from .diff import (
@@ -111,6 +112,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--scan-discovered", action="store_true",
                    help="With --discover: scan each live in-house subdomain too "
                         "(only if you are authorized for all of them)")
+    p.add_argument("--resume", action="store_true",
+                   help="Reuse modules finished by an interrupted run of the same "
+                        "scan instead of re-running them")
     p.add_argument("--suppress-file", default=None,
                    help="Accepted-risk file (YAML; default: .reconignore.yml if present)")
     p.add_argument("--notify", action="append", default=None, metavar="URL",
@@ -251,14 +255,27 @@ def _scan_one(target: str, settings: dict) -> tuple[int, list[str]]:
                 print(f"[*] {target}: {msg} {t['running']}", file=sys.stderr)
         elif kind == "done" and not quiet:
             print(f"[✓] {msg}", file=sys.stderr)
+        elif kind == "resume":
+            ran.append(msg)
+            if not quiet:
+                print(f"[↺] {msg}: {t['resumed']}", file=sys.stderr)
         elif kind == "skip" and not quiet:
             print(f"[~] {msg}: {t['skipped']}", file=sys.stderr)
         elif kind == "error":
             print(f"[!] {msg}", file=sys.stderr)
 
+    checkpoint = Checkpoint(path_for(settings["output_dir"], _host_slug(target)),
+                            target, selected)
+    if settings.get("resume"):
+        completed = checkpoint.load()
+    else:
+        completed = {}
+        checkpoint.clear()          # a fresh run must not leave stale state behind
+
     result = run_scan(target, selected, ctx,
                       docker_ok=docker_available(), on_event=on_event,
-                      jobs=settings["jobs"], serial=settings["serial"])
+                      jobs=settings["jobs"], serial=settings["serial"],
+                      completed=completed, on_module_done=checkpoint.record)
 
     if settings.get("suppressions"):
         expired = apply_suppressions(result, settings["suppressions"])
@@ -307,6 +324,7 @@ def _scan_one(target: str, settings: dict) -> tuple[int, list[str]]:
 
     run_dir = _write_reports(result, meta, settings["output_dir"],
                              settings["lang"], diff, settings["formats"])
+    checkpoint.clear()
 
     # Optional: open GitHub issues for new findings
     if settings.get("github_issues") and diff is not None:
@@ -471,6 +489,7 @@ def main(argv: list[str] | None = None) -> int:
         "analyst_base_url": args.analyst_base_url,
         "analyst_include_evidence": args.analyst_include_evidence,
         "quiet": args.quiet,
+        "resume": args.resume,
         "formats": ([f.strip() for f in args.format.split(",") if f.strip()]
                     if args.format else None),
         "options": cfg.get("options", {}),
