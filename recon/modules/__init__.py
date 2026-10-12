@@ -68,6 +68,12 @@ REGISTRY: dict[str, ModuleSpec] = {
     "crawl": ModuleSpec(
         "crawl", "recon.modules.crawl", True, True,
         "Crawl the site to map endpoints/parameters (katana)", tools=("katana",)),
+    "cms": ModuleSpec(
+        "cms", "recon.modules.cms", False, True,
+        "CMS detection + WordPress exposure checks (read-only)"),
+    "idor": ModuleSpec(
+        "idor", "recon.modules.idor", False, True,
+        "IDOR / broken object-level authorization probe (read-only, opt-in)"),
 }
 
 # Default execution order: cheap pure-Python modules first, Docker ones after.

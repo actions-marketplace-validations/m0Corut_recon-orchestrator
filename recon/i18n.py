@@ -16,6 +16,22 @@ DEFAULT_LANG = "en"
 # msg_key -> {lang -> {title?, detail?, recommendation?}} with {param} placeholders.
 # Only Turkish is listed; English comes from the module-authored text.
 CATALOG: dict[str, dict[str, dict[str, str]]] = {
+    # crawl / cms / idor
+    "crawl.surface": {"tr": {
+        "title": "Saldırı yüzeyi: {host} üzerinde {urls} endpoint",
+        "detail": "Crawl {urls} host-içi URL buldu, {params} tanesi sorgu "
+                  "parametreli (fuzz edilebilir). Parametrelileri fuzz etmek için "
+                  "--dast ile çalıştır."}},
+    "cms.detected": {"tr": {
+        "title": "CMS tespit edildi: {cms}",
+        "detail": "{cms} tespit edildi (sürüm {version}). CMS ve eklentilerini "
+                  "güncel tut; sürümü gizle."}},
+    "idor.possible": {"tr": {
+        "title": "Olası IDOR: {location}",
+        "detail": "Komşu bir nesne id'si 200 ile farklı bir nesne döndürdü; nesne "
+                  "düzeyinde yetkilendirme eksik olabilir. Bu nesnenin bu kullanıcı "
+                  "tarafından erişilebilir olması gerekip gerekmediğini manuel "
+                  "doğrula."}},
     # discover
     "discover.host": {"tr": {
         "title": "Canlı host: {host}",
@@ -257,6 +273,9 @@ MODULE_DESC_TR: dict[str, str] = {
     "mail": "SMTP/mail: STARTTLS, MTA-STS, TLS-RPT (kapsam korumalı, salt-okunur)",
     "discover": "Alt alan adı envanteri (CT kayıtları + varsa subfinder), canlı "
                 "host yoklama, sahipsiz CNAME / takeover kontrolü",
+    "crawl": "Endpoint/parametre haritası için siteyi tarar (katana)",
+    "cms": "CMS tespiti + WordPress ifşa kontrolleri (salt-okunur)",
+    "idor": "IDOR / nesne düzeyi yetki kontrolü taraması (salt-okunur, opt-in)",
 }
 
 
