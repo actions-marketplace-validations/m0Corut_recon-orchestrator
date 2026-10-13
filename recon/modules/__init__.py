@@ -86,6 +86,9 @@ REGISTRY: dict[str, ModuleSpec] = {
     "redirect": ModuleSpec(
         "redirect", "recon.modules.redirect", False, True,
         "Open-redirect detection on redirect-style params (read-only)"),
+    "passive": ModuleSpec(
+        "passive", "recon.modules.passive", False, True,
+        "Passive extras: JWT/SRI/session-in-URL/disclosure/robots/security.txt"),
 }
 
 # Default execution order: cheap pure-Python modules first, Docker ones after.
