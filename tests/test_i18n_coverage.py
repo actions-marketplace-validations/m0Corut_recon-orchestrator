@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Guard against findings that silently fall back to English in --lang tr.
 
 Statically scans each module for the localization key each finding uses
