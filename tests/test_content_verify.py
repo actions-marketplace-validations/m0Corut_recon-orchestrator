@@ -37,3 +37,16 @@ def test_judge_generic_path():
 def test_ds_store_magic():
     assert judge_body(".DS_Store", 200, b"\x00\x00\x00\x01Bud1xxxx")[1] == "confirmed"
     assert judge_body(".DS_Store", 200, b"<html>")[1] == "plausible"
+
+
+def test_content_unreachable(monkeypatch):
+    import requests
+
+    import recon.modules.content as content
+    from recon.context import ScanContext
+
+    def boom(*a, **k):
+        raise requests.ConnectionError("down")
+    monkeypatch.setattr(content, "scoped_get", boom)
+    f = {x.rule_id for x in content.run("https://t", ScanContext())}
+    assert f == {"content.unreachable"}      # no false "clean"

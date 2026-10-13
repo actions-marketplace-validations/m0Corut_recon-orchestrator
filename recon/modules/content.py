@@ -10,6 +10,8 @@ import concurrent.futures as cf
 import re
 from urllib.parse import urljoin, urlparse
 
+import requests
+
 from ..findings import Finding
 from ..scope import Scope, ScopeViolation, scoped_get
 
@@ -89,15 +91,16 @@ BODY_CAP = 65536
 BODY_HEAD = 4096
 
 
-def _baseline(target: str, scope, timeout: int, limiter) -> tuple[int, int]:
-    """Return (status, content_length) for a random nonexistent path."""
+def _baseline(target: str, scope, timeout: int, limiter) -> tuple[int, int] | None:
+    """(status, content_length) for a random nonexistent path, or None if the
+    target is unreachable (so the caller can avoid reporting a false 'clean')."""
     try:
         r = scoped_get(urljoin(target + "/", "zzz_nonexistent_" + "a" * 12),
                        scope, timeout=timeout, max_redirects=0, limiter=limiter,
                        max_bytes=BODY_CAP)
         return r.status_code, len(r.content)
-    except Exception:
-        return 404, 0
+    except (ScopeViolation, requests.RequestException):
+        return None
 
 
 def run(target: str, ctx: dict) -> list[Finding]:
@@ -108,7 +111,12 @@ def run(target: str, ctx: dict) -> list[Finding]:
     base = target.rstrip("/") + "/"
     scope = ctx.get("scope") or Scope.allow_all()
     limiter = ctx.get("limiter")
-    base_status, _ = _baseline(target, scope, timeout, limiter)
+    baseline = _baseline(target, scope, timeout, limiter)
+    if baseline is None:
+        return [Finding(NAME, "Content discovery could not reach the target", "info",
+                        "The baseline request failed, so no path was probed.",
+                        rule_id=f"{NAME}.unreachable", params={"target": target})]
+    base_status, _ = baseline
 
     def probe(path: str):
         url = urljoin(base, path)

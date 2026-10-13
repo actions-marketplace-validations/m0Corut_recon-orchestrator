@@ -58,6 +58,7 @@ ignore = ["B904"]
 "tests/*" = ["E501"]
 "recon/report_html.py" = ["E501"]  # inline CSS has long lines by design
 "recon/trend.py" = ["E501"]        # inline CSS, same as report_html
+"recon/i18n.py" = ["E501"]         # translation catalogue: long message strings
 
 [tool.mypy]
 python_version = "3.10"
