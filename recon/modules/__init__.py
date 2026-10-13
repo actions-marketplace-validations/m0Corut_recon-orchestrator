@@ -89,6 +89,9 @@ REGISTRY: dict[str, ModuleSpec] = {
     "passive": ModuleSpec(
         "passive", "recon.modules.passive", False, True,
         "Passive extras: JWT/SRI/session-in-URL/disclosure/robots/security.txt"),
+    "hostinject": ModuleSpec(
+        "hostinject", "recon.modules.hostinject", False, True,
+        "Host-header injection / cache-poisoning signals (read-only, verify manually)"),
 }
 
 # Default execution order: cheap pure-Python modules first, Docker ones after.
