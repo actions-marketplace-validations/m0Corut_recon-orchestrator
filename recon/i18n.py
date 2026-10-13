@@ -59,6 +59,26 @@ CATALOG: dict[str, dict[str, dict[str, str]]] = {
     "content.unverified-path": {"tr": {
         "title": "Yol 200 döndü (doğrulanmadı): /{path}",
         "detail": "HTTP 200 ama hassas-içerik imzası eşleşmedi (olası soft-404)."}},
+    "jsrecon.secret": {"tr": {
+        "title": "JavaScript'te olası {family}",
+        "detail": "İstemci tarafı JS içinde {family} biçiminde bir sır gömülü."}},
+    "jsrecon.vulnerable-library": {"tr": {
+        "title": "Güncel olmayan JS kütüphanesi: {lib} {version}",
+        "detail": "{lib} {version} < {fixed}; bilinen açıklar içerir."}},
+    "jsrecon.sourcemap-exposed": {"tr": {
+        "title": "JavaScript source map ifşa",
+        "detail": ".js.map erişilebilir; küçültülmemiş özgün kaynağı açığa çıkarır."}},
+    "jsrecon.firebase-config": {"tr": {
+        "title": "JavaScript'te Firebase web yapılandırması",
+        "detail": "Firebase istemci yapılandırması mevcut. Bu genelde herkese "
+                  "açıktır; Firebase güvenlik kurallarının gizliliğe dayanmadığını "
+                  "doğrulayın."}},
+    "jsrecon.no-scripts": {"tr": {
+        "title": "Aynı kaynaklı JavaScript bulunamadı",
+        "detail": "İncelenecek bir şey yok (aynı host'ta <script src> ya da .js URL yok)."}},
+    "jsrecon.library-inventory": {"tr": {
+        "title": "JavaScript kütüphane envanteri",
+        "detail": "Tespit edilen kütüphaneler listelendi."}},
     "csrf.form-without-token": {"tr": {
         "title": "CSRF token'ı olmayan durum değiştiren form",
         "detail": "POST/PUT/PATCH/DELETE formunda anti-CSRF token'ı ve SameSite "
@@ -335,6 +355,7 @@ MODULE_DESC_TR: dict[str, str] = {
                 "host yoklama, sahipsiz CNAME / takeover kontrolü",
     "crawl": "Endpoint/parametre haritası için siteyi tarar (katana)",
     "csrf": "HTML formlarında CSRF koruması kontrolü (pasif, salt-okunur)",
+    "jsrecon": "İstemci JS: sızan sırlar, eski kütüphaneler, açık source map'ler",
     "cms": "CMS tespiti + WordPress ifşa kontrolleri (salt-okunur)",
     "idor": "IDOR / nesne düzeyi yetki kontrolü taraması (salt-okunur, opt-in)",
 }

@@ -1,0 +1,12 @@
+{
+  "_note": "Hand-maintained, trimmed vulnerable-JS-library DB (retire.js-style). version = first vulnerable-below threshold.",
+  "jquery": [{"below": "3.5.0", "severity": "medium", "note": "XSS in htmlPrefilter / jQuery.htmlPrefilter (CVE-2020-11022/11023)"}],
+  "angular": [{"below": "1.999.0", "severity": "low", "note": "AngularJS 1.x is end-of-life (no security support)"}],
+  "angularjs": [{"below": "1.999.0", "severity": "low", "note": "AngularJS 1.x is end-of-life (no security support)"}],
+  "lodash": [{"below": "4.17.21", "severity": "high", "note": "Prototype pollution / command injection (CVE-2021-23337, CVE-2020-8203)"}],
+  "bootstrap": [{"below": "3.4.1", "severity": "medium", "note": "XSS in data-target/tooltip (CVE-2019-8331 and earlier)"}],
+  "moment": [{"below": "2.29.2", "severity": "medium", "note": "Path traversal / ReDoS (CVE-2022-24785, CVE-2022-31129)"}],
+  "dompurify": [{"below": "2.4.0", "severity": "high", "note": "mXSS bypasses fixed in 2.4.0"}],
+  "handlebars": [{"below": "4.7.7", "severity": "high", "note": "Prototype pollution / RCE in template compiler"}],
+  "vue": [{"below": "2.6.11", "severity": "medium", "note": "ReDoS / XSS fixes"}]
+}

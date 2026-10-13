@@ -38,6 +38,9 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.dynamic]
 version = { attr = "recon.__version__" }
 
+[tool.setuptools.package-data]
+recon = ["data/*.json"]
+
 [tool.setuptools.packages.find]
 include = ["recon*"]
 

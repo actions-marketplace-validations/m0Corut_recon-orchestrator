@@ -77,6 +77,9 @@ REGISTRY: dict[str, ModuleSpec] = {
     "csrf": ModuleSpec(
         "csrf", "recon.modules.csrf", False, True,
         "CSRF protection check on HTML forms (passive, read-only)"),
+    "jsrecon": ModuleSpec(
+        "jsrecon", "recon.modules.jsrecon", False, True,
+        "Client-side JS: leaked secrets, outdated libraries, exposed source maps"),
 }
 
 # Default execution order: cheap pure-Python modules first, Docker ones after.
