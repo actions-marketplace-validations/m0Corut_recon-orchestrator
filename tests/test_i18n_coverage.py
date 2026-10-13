@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Guard against findings that silently fall back to English in --lang tr.
 
 Statically scans each module for the localization key each finding uses
@@ -8,6 +6,8 @@ CATALOG entry exists. Dynamic keys (f-strings with an expression in the slug)
 can't be resolved statically and are skipped — they are the minority and each
 sets an explicit static msg_key that IS checked.
 """
+from __future__ import annotations
+
 import ast
 import pathlib
 
