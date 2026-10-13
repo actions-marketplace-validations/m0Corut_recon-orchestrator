@@ -59,6 +59,44 @@ CATALOG: dict[str, dict[str, dict[str, str]]] = {
     "content.unverified-path": {"tr": {
         "title": "Yol 200 döndü (doğrulanmadı): /{path}",
         "detail": "HTTP 200 ama hassas-içerik imzası eşleşmedi (olası soft-404)."}},
+    "graphql.introspection-enabled": {"tr": {
+        "title": "GraphQL introspection açık: {url}",
+        "detail": "Introspection tüm şemayı döndürüyor; production'da kapat."}},
+    "graphql.endpoint-found": {"tr": {
+        "title": "GraphQL endpoint bulundu: {url}",
+        "detail": "Bir GraphQL endpoint'i yanıt veriyor (introspection kapalı görünüyor)."}},
+    "graphql.debug-errors": {"tr": {
+        "title": "GraphQL ayrıntılı hatalar: {url}",
+        "detail": "Hata yanıtı yığın izi / exception detayı içeriyor (debug modu).",
+        "recommendation": "Production'da ayrıntılı hata çıktısını kapat."}},
+    "graphql.ide-exposed": {"tr": {
+        "title": "GraphQL IDE açık: {url}",
+        "detail": "GraphiQL/Playground IDE sunuluyor; şema keşfini kolaylaştırır.",
+        "recommendation": "GraphQL IDE'yi production'da açığa çıkarma."}},
+    "graphql.get-query-allowed": {"tr": {
+        "title": "GraphQL sorguları GET ile kabul ediliyor: {url}",
+        "detail": "GET sorguları CSRF ile tetiklenebilir ve önbelleğe alınabilir.",
+        "recommendation": "GraphQL'i yalnızca POST üzerinden kabul et."}},
+    "graphql.none-found": {"tr": {
+        "title": "GraphQL endpoint bulunamadı",
+        "detail": "Yaygın yollarda yanıt veren bir GraphQL endpoint'i yok."}},
+    "redirect.open-redirect": {"tr": {
+        "title": "Açık yönlendirme: {url}",
+        "detail": "Yönlendirme parametresi kullanıcıyı saldırganın seçtiği host'a "
+                  "gönderiyor.",
+        "recommendation": "Yönlendirme hedeflerini bir allow-list ile doğrula."}},
+    "redirect.reflected-not-redirected": {"tr": {
+        "title": "Yönlendirme parametresi yansıtıldı (yönlendirme yok): {url}",
+        "detail": "Canary değeri sayfada yansıtılıyor ama yönlendirme olmadı; "
+                  "manuel kontrol önerilir."}},
+    "redirect.clean": {"tr": {
+        "title": "Açık yönlendirme bulunamadı",
+        "detail": "{tested} yönlendirme-tipi parametre denendi; hiçbiri site dışına "
+                  "yönlendirmedi."}},
+    "redirect.no-candidates": {"tr": {
+        "title": "Yönlendirme-tipi parametre bulunamadı",
+        "detail": "Hiçbir crawl URL'inde yönlendirme-tipi parametre yok (bulmak için "
+                  "crawl modülüyle çalıştır)."}},
     "jsrecon.secret": {"tr": {
         "title": "JavaScript'te olası {family}",
         "detail": "İstemci tarafı JS içinde {family} biçiminde bir sır gömülü."}},
@@ -356,6 +394,8 @@ MODULE_DESC_TR: dict[str, str] = {
     "crawl": "Endpoint/parametre haritası için siteyi tarar (katana)",
     "csrf": "HTML formlarında CSRF koruması kontrolü (pasif, salt-okunur)",
     "jsrecon": "İstemci JS: sızan sırlar, eski kütüphaneler, açık source map'ler",
+    "graphql": "GraphQL ifşası: introspection, IDE, hata ayıklama (salt-okunur)",
+    "redirect": "Yönlendirme parametrelerinde açık yönlendirme tespiti (salt-okunur)",
     "cms": "CMS tespiti + WordPress ifşa kontrolleri (salt-okunur)",
     "idor": "IDOR / nesne düzeyi yetki kontrolü taraması (salt-okunur, opt-in)",
 }
