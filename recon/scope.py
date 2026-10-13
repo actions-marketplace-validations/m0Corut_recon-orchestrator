@@ -111,7 +111,7 @@ def _origin(url: str) -> tuple[str, str, int | None]:
 
 def scoped_get(url: str, scope: Scope, *, timeout: int = 15,
                headers: dict | None = None, auth_headers: dict | None = None,
-               max_redirects: int = 5, limiter=None):
+               max_redirects: int = 5, limiter=None, max_bytes: int | None = None):
     """GET that enforces scope before the initial request and every redirect.
 
     Returns the final ``requests.Response``. Raises ScopeViolation if any hop
@@ -121,10 +121,18 @@ def scoped_get(url: str, scope: Scope, *, timeout: int = 15,
     ``auth_headers`` (cookies, tokens) are sent only while the request stays on
     the original origin (scheme, host, port): a redirect to another in-scope
     host, or from https down to http, drops them.
+
+    ``max_bytes``: when set, the final response body is streamed and capped at
+    this many (decoded) bytes, so a probe that happens to hit a huge file (a
+    database dump, a backup archive, a heapdump) never buffers the whole thing
+    into memory. ``resp.content`` then returns only the capped head. The cap is
+    applied after transfer-decoding, so a compressed response cannot expand past
+    it either.
     """
     current = url
     origin = _origin(url)
     resp = None
+    stream = max_bytes is not None
     for _ in range(max_redirects + 1):
         scope.check(current)
         if limiter is not None:
@@ -133,15 +141,23 @@ def scoped_get(url: str, scope: Scope, *, timeout: int = 15,
         if auth_headers and _origin(current) == origin:
             hop_headers.update(auth_headers)
         resp = requests.get(current, timeout=timeout, headers=hop_headers or None,
-                            allow_redirects=False)
+                            allow_redirects=False, stream=stream)
         if limiter is not None and hasattr(limiter, "observe"):
             limiter.observe(resp.status_code, resp.headers.get("Retry-After"))
         if resp.status_code in (301, 302, 303, 307, 308):
             loc = resp.headers.get("Location")
             if not loc:
                 return resp
+            if stream:
+                resp.close()
             current = urljoin(current, loc)
             continue
+        if stream:
+            # Read at most max_bytes of the decoded body, then drop the rest.
+            body = resp.raw.read(max_bytes, decode_content=True) or b""
+            resp._content = body
+            resp._content_consumed = True  # type: ignore[attr-defined]
+            resp.close()
         return resp
     return resp
 

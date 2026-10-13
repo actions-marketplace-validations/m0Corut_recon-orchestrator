@@ -53,6 +53,12 @@ CATALOG: dict[str, dict[str, dict[str, str]]] = {
     "headers.cookie-no-host-prefix": {"tr": {
         "title": "Oturum çerezinde __Host-/__Secure- öneki yok: {cookie}",
         "detail": "Önek, çerezi fiksasyon/üzerine yazmaya karşı sertleştirir."}},
+    "content.exposed-panel": {"tr": {
+        "title": "Açık panel/endpoint: /{path}",
+        "detail": "HTTP {status} döndü (catch-all {base} değil)."}},
+    "content.unverified-path": {"tr": {
+        "title": "Yol 200 döndü (doğrulanmadı): /{path}",
+        "detail": "HTTP 200 ama hassas-içerik imzası eşleşmedi (olası soft-404)."}},
     "csrf.form-without-token": {"tr": {
         "title": "CSRF token'ı olmayan durum değiştiren form",
         "detail": "POST/PUT/PATCH/DELETE formunda anti-CSRF token'ı ve SameSite "
@@ -191,6 +197,9 @@ CATALOG: dict[str, dict[str, dict[str, str]]] = {
     # web
     "web.nuclei.no-match": {"tr": {
         "title": "nuclei: eşleşme yok", "detail": "{severities} seviyesinde bulgu yok."}},
+    "web.profile-ran": {"tr": {
+        "title": "nuclei profili '{profile}' çalıştı",
+        "detail": "Ek nuclei etiket seti tarandı (profil: {profile})."}},
     "web.image-unavailable": {"tr": {"title": "nuclei imajı indirilemedi"}},
 }
 

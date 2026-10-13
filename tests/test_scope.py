@@ -108,7 +108,7 @@ def _record_gets(monkeypatch, responses):
     import recon.scope as scope_mod
     sent = []
 
-    def fake_get(url, timeout, headers, allow_redirects):
+    def fake_get(url, timeout, headers, allow_redirects, stream=False):
         sent.append((url, dict(headers or {})))
         return responses.pop(0)
     monkeypatch.setattr(scope_mod.requests, "get", fake_get)
@@ -152,6 +152,44 @@ def test_scoped_get_no_follow_returns_first_3xx(monkeypatch):
     assert r.status_code == 302
     assert r.headers["Location"] == "https://example.com/elsewhere"
     assert len(sent) == 1          # the redirect target was never fetched
+
+
+def test_scoped_get_max_bytes_caps_body(monkeypatch):
+    # A probe that hits a huge file (DB dump, backup archive) must never buffer
+    # the whole body: max_bytes streams and caps the read.
+    import recon.scope as scope_mod
+    from recon.scope import Scope, scoped_get
+
+    read_calls = []
+    closed = []
+
+    class Raw:
+        def read(self, amt=None, decode_content=False):
+            read_calls.append((amt, decode_content))
+            return b"x" * amt           # server would send gigabytes
+
+    class R:
+        status_code = 200
+        headers: dict = {}
+
+        def __init__(self):
+            self.raw = Raw()
+
+        def close(self):
+            closed.append(True)
+
+    def fake_get(url, timeout, headers, allow_redirects, stream=False):
+        assert stream is True           # streaming only when capping
+        return R()
+    monkeypatch.setattr(scope_mod.requests, "get", fake_get)
+    monkeypatch.setattr(scope_mod, "_resolve", lambda h: ["93.184.216.34"])
+
+    r = scoped_get("https://example.com/backup.sql", Scope(["example.com"]),
+                   max_redirects=0, max_bytes=65536)
+    assert read_calls == [(65536, True)]       # read exactly the cap, decoded
+    assert len(r._content) == 65536            # body never exceeds the cap
+    assert r._content_consumed is True
+    assert closed                              # response was released
 
 
 def test_scoped_post_does_not_follow_redirect(monkeypatch):

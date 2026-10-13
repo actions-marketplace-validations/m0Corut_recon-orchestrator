@@ -24,6 +24,7 @@ OPTION_KEYS = {
     "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout",
     "discover_max_hosts", "discover_timeout",
     "crawl_depth", "crawl_max_urls", "crawl_timeout", "crawl_headless",
+    "nuclei_profile", "nuclei_info",
 }
 
 
