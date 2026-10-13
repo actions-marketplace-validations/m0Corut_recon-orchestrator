@@ -105,7 +105,7 @@ which modules you want:
 
 ```bash
 pip install "recon-orchestrator[dns]"            # omit [dns] if you don't need dns/mail
-pip install "recon-orchestrator[dns]==1.1.1"     # or pin an exact version (e.g. in CI)
+pip install "recon-orchestrator[dns]==1.2.0"     # or pin an exact version (e.g. in CI)
 pip install -U "recon-orchestrator[dns]"         # upgrade an existing install
 ```
 
@@ -128,11 +128,11 @@ subfinder as native binaries inside the container, so it needs *only* Docker
 itself:
 
 ```bash
-docker run --rm -v "$PWD:/work" ghcr.io/m0corut/recon-orchestrator:1.1.1 \
+docker run --rm -v "$PWD:/work" ghcr.io/m0corut/recon-orchestrator:1.2.0 \
   https://example.com --authorized
 ```
 
-Use a version tag such as `:1.1.1` so a scan does not change underneath you;
+Use a version tag such as `:1.2.0` so a scan does not change underneath you;
 `:latest` always points at the newest release.
 
 **Tool versions.** When the tools run through Docker, recon uses pinned
@@ -481,7 +481,7 @@ olarak opsiyoneldir:
 
 ```bash
 pip install "recon-orchestrator[dns]"            # dns/mail gerekmiyorsa [dns]'i çıkar
-pip install "recon-orchestrator[dns]==1.1.1"     # ya da tam sürümü sabitle (ör. CI'da)
+pip install "recon-orchestrator[dns]==1.2.0"     # ya da tam sürümü sabitle (ör. CI'da)
 pip install -U "recon-orchestrator[dns]"         # mevcut kurulumu güncelle
 ```
 
@@ -504,11 +504,11 @@ container içinde native binary olarak barındırır, yani *sadece* Docker'ın
 kendisi gerekir:
 
 ```bash
-docker run --rm -v "$PWD:/work" ghcr.io/m0corut/recon-orchestrator:1.1.1 \
+docker run --rm -v "$PWD:/work" ghcr.io/m0corut/recon-orchestrator:1.2.0 \
   https://ornek.com --authorized
 ```
 
-Taramanın habersizce değişmemesi için `:1.1.1` gibi bir sürüm etiketi kullan;
+Taramanın habersizce değişmemesi için `:1.2.0` gibi bir sürüm etiketi kullan;
 `:latest` her zaman en yeni sürümü gösterir.
 
 **Araç sürümleri.** Araçlar Docker üzerinden çalıştığında recon sabitlenmiş
