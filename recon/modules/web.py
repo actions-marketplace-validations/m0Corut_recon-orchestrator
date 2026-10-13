@@ -187,22 +187,57 @@ def _run_dast(target: str, ctx, runner, severities: str) -> list[Finding]:
     return _dast_from_crawl(target, ctx, runner, severities)
 
 
-def run(target: str, ctx: dict) -> list[Finding]:
-    runner = ctx.get("runner") or DockerRunner()
-    severities = ctx.get("nuclei_severity", "low,medium,high,critical")
+# nuclei is installed but ships thousands of templates; these profiles turn on
+# useful tag sets that the default severity-only run never reports.
+PROFILE_TAGS = {
+    "default": "",
+    "panels": "panel,exposure",
+    "exposures": "exposure,tech,config",
+    "full": "panel,exposure,tech,config,misconfig",
+}
+
+
+def effective_severities(ctx) -> str:
+    sev = ctx.get("nuclei_severity", "low,medium,high,critical")
+    if ctx.get("nuclei_info"):
+        parts = [s.strip() for s in sev.split(",") if s.strip()]
+        if "info" not in parts:
+            parts.insert(0, "info")
+        return ",".join(parts)
+    return sev
+
+
+def build_nuclei_args(target: str, ctx) -> list[str]:
+    """Pure: the argv for the base nuclei scan (testable without Docker)."""
     args = [
         "-u", target,
-        "-severity", severities,
+        "-severity", effective_severities(ctx),
         "-rate-limit", str(ctx.get("rate", 20)),
         "-timeout", "10",
         "-jsonl", "-silent",
     ]
     tags = ctx.get("nuclei_tags")
+    if not tags:
+        profile = str(ctx.get("nuclei_profile", "default") or "default")
+        tags = PROFILE_TAGS.get(profile, "")
     if tags:
         args += ["-tags", tags]
+    return args
+
+
+def run(target: str, ctx: dict) -> list[Finding]:
+    runner = ctx.get("runner") or DockerRunner()
+    severities = effective_severities(ctx)
+    args = build_nuclei_args(target, ctx)
 
     stdout = runner.run_capture("nuclei", args, ctx.get("nuclei_timeout", 1200))
     findings = parse_nuclei_jsonl(stdout, severities)
+    profile = str(ctx.get("nuclei_profile", "default") or "default")
+    if profile != "default" and not ctx.get("nuclei_tags"):
+        findings.append(Finding(
+            NAME, f"nuclei profile '{profile}' ran", "info",
+            f"Extra nuclei tag set '{PROFILE_TAGS.get(profile, '')}' was scanned.",
+            rule_id=f"{NAME}.profile-ran", params={"profile": profile}))
     if ctx.get("dast"):
         findings += _run_dast(target, ctx, runner, severities)
     return findings

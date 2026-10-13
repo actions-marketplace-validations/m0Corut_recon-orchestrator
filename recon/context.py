@@ -33,6 +33,8 @@ class ScanContext:
     crawl_headless: bool = False
     idor_urls: list[str] | None = None
     max_requests_per_module: int = 0  # 0 = unlimited; honoured by new probe modules
+    nuclei_profile: str = "default"   # default|panels|exposures|full
+    nuclei_info: bool = False         # include info-severity nuclei findings
     # authenticated (authz) module inputs
     auth_header: str | None = None
     auth_pages: list[str] | None = None
