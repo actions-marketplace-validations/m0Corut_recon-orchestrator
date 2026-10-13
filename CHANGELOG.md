@@ -6,6 +6,8 @@ Format [Keep a Changelog](https://keepachangelog.com/) tabanlı; sürümleme
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-13
+
 ### Added
 - Yeni tespit modülleri (hepsi opt-in, salt-okunur): `csrf` (form CSRF koruması),
   `jsrecon` (JS'te sızan sır/eski kütüphane/source map), `graphql` (introspection/
@@ -136,7 +138,8 @@ Format [Keep a Changelog](https://keepachangelog.com/) tabanlı; sürümleme
 - İlk sürüm: 6 modül (headers, cors, content, ports, tls, web), Markdown/JSON/
   SARIF rapor, `--authorized` yetki kapısı, `--fail-on` CI çıkış kodu.
 
-[Unreleased]: https://github.com/m0Corut/recon-orchestrator/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/m0Corut/recon-orchestrator/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/m0Corut/recon-orchestrator/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/m0Corut/recon-orchestrator/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/m0Corut/recon-orchestrator/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/m0Corut/recon-orchestrator/releases/tag/v1.0.0
