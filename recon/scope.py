@@ -47,11 +47,12 @@ class Scope:
     def __init__(self, patterns: list[str], allow_private: bool = False) -> None:
         self.patterns = [p.lower().strip() for p in patterns if p.strip()]
         self.allow_private = allow_private
+        self._all = False
 
     @classmethod
     def allow_all(cls) -> Scope:
         s = cls([])
-        s._all = True  # type: ignore[attr-defined]
+        s._all = True
         return s
 
     @classmethod
@@ -76,7 +77,7 @@ class Scope:
         """Allowlist match only (no DNS). See ``check`` for the address check."""
         if not host:
             return False
-        if getattr(self, "_all", False):
+        if self._all:
             return True
         host = host.lower()
         if self._named_exactly(host):
@@ -96,7 +97,7 @@ class Scope:
         host = (urlparse(url).hostname or "").lower()
         if not self.allows(host):
             raise ScopeViolation(host or url)
-        if getattr(self, "_all", False) or self.allow_private or self._named_exactly(host):
+        if self._all or self.allow_private or self._named_exactly(host):
             return
         private = [a for a in _resolve(host) if not _is_public_ip(a)]
         if private:

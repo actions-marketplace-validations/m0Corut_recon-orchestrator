@@ -16,6 +16,53 @@ DEFAULT_LANG = "en"
 # msg_key -> {lang -> {title?, detail?, recommendation?}} with {param} placeholders.
 # Only Turkish is listed; English comes from the module-authored text.
 CATALOG: dict[str, dict[str, dict[str, str]]] = {
+    # --- quality pass: previously English-only findings ---
+    'authz.missing-access-control': {"tr": {"title": 'Korumalı sayfa kimliksiz erişilebilir', "detail": 'Sayfa kimlik bilgisi olmadan 200 dönüyor; erişim kontrolü eksik olabilir.'}},
+    'authz.cacheable-auth-page': {"tr": {"title": 'Kimlik doğrulanmış sayfa önbelleklenebilir', "detail": 'Yanıtta Cache-Control: no-store/private yok.'}},
+    'authz.no-credentials': {"tr": {"title": 'Kimlik bilgisi verilmedi', "detail": 'authz modülü --auth-header ve --auth-page ile çalışır.'}},
+    'authz.no-pages': {"tr": {"title": 'Giriş gerektiren sayfa listelenmedi', "detail": '--auth-page ile giriş gerektiren yollar ver.'}},
+    'authz.clean': {"tr": {"title": 'authz: erişim kontrolü açığı yok', "detail": 'Korumalı sayfalar beklendiği gibi kimlik istedi.'}},
+    'cms.wp-user-enum': {"tr": {"title": 'WordPress REST ile kullanıcı sayımı', "detail": 'REST users endpoint kullanıcı adlarını listeliyor; kimlik saldırılarını kolaylaştırır.'}},
+    'cms.wp-debug-log': {"tr": {"title": 'WordPress debug log herkese açık', "detail": '/wp-content/debug.log erişilebilir; yol/sorgu/sır sızdırabilir.'}},
+    'cms.wp-xmlrpc': {"tr": {"title": 'WordPress XML-RPC açık', "detail": 'xmlrpc.php erişilebilir; brute-force amplifikasyonu ve pingback saldırılarına yarar.'}},
+    'cms.wp-readme': {"tr": {"title": 'WordPress readme.html sürümü açığa çıkarıyor', "detail": 'readme.html okunabilir ve tam sürümü ifşa ediyor.'}},
+    'cms.none': {"tr": {"title": 'Bilinen CMS tespit edilmedi', "detail": 'Ana sayfada WordPress/Joomla/Drupal parmak izi yok.'}},
+    'cms.unreachable': {"tr": {"title": 'CMS kontrolü hedefi getiremedi', "detail": 'Ana sayfa getirilemedi.'}},
+    'content.unreachable': {"tr": {"title": 'İçerik keşfi hedefe ulaşamadı', "detail": 'Baz istek başarısız oldu; hiçbir yol yoklanmadı.'}},
+    'cors.clean': {"tr": {"title": 'CORS: Origin yansıması yok', "detail": "Sunucu saldırgan Origin'ini yansıtmadı."}},
+    'crawl.empty': {"tr": {"title": 'Crawl ek endpoint bulamadı', "detail": 'katana hedef dışında host-içi URL bulamadı.'}},
+    'discover.ct-unavailable': {"tr": {"title": 'Sertifika şeffaflığı sorgusu başarısız', "detail": 'Hiçbir CT kaynağı sorgulanamadı; sonuçlar eksik olabilir.'}},
+    'dns.spf-missing': {"tr": {"title": 'SPF kaydı yok', "detail": 'Alan mail gönderiyor (MX var) ama SPF kaydı yok.'}},
+    'dns.spf-allow-all': {"tr": {"title": 'SPF herkese izin veriyor (+all)', "detail": "SPF '+all' herkesin bu alan adıyla mail göndermesine izin verir."}},
+    'dns.spf-softfail': {"tr": {"title": 'SPF softfail (~all)', "detail": 'SPF ~all ile bitiyor; sahte mail yine de geçebilir.'}},
+    'dns.spf-no-all': {"tr": {"title": "SPF 'all' niteleyicisi yok", "detail": "SPF kaydı bir 'all' mekanizmasıyla bitmiyor."}},
+    'dns.dmarc-missing': {"tr": {"title": 'DMARC kaydı yok', "detail": 'Alan adının DMARC kaydı yok; sahtecilik engellenmez.'}},
+    'dns.dmarc-policy-none': {"tr": {"title": 'DMARC politikası none', "detail": 'DMARC p=none yalnızca izler; sahteciliği engellemez.'}},
+    'dns.dmarc-no-rua': {"tr": {"title": 'DMARC rapor adresi (rua) yok', "detail": 'DMARC var ama toplu rapor adresi tanımlı değil.'}},
+    'dns.caa-missing': {"tr": {"title": 'CAA kaydı yok', "detail": 'CAA kaydı yok; herhangi bir CA bu alana sertifika verebilir.'}},
+    'dns.dkim-present': {"tr": {"title": 'DKIM mevcut', "detail": 'DKIM anahtar(lar)ı bulundu.'}},
+    'dns.dkim-none': {"tr": {"title": 'DKIM bulunamadı', "detail": 'Yaygın seçicilerde DKIM anahtarı bulunamadı.'}},
+    'dns.extra-missing': {"tr": {"title": 'dnspython kurulu değil', "detail": "dns extra'sını kur: pip install recon-orchestrator[dns]"}},
+    'dns.lookup-unreliable': {"tr": {"title": 'DNS sorguları güvenilmez', "detail": 'Resolver yanıt vermedi (timeout/nameserver yok); SPF/DMARC/CAA kontrol edilemedi.'}},
+    'headers.scope-blocked': {"tr": {"title": 'Kapsam dışı yönlendirme engellendi', "detail": 'Bir yönlendirme izin verilen kapsamın dışına işaret etti.'}},
+    'idor.no-targets': {"tr": {"title": 'Test edilecek id içeren URL yok', "detail": "--idor-url ver ya da crawl modülüyle id içeren URL'ler keşfet."}},
+    'idor.clean': {"tr": {"title": 'IDOR sinyali bulunamadı', "detail": "Test edilen id içeren endpoint'lerde komşu id farklı nesne döndürmedi."}},
+    'mail.no-mx': {"tr": {"title": 'MX kaydı yok', "detail": 'Alan adının MX kaydı yok (mail servisi yok mu?).'}},
+    'mail.no-starttls': {"tr": {"title": 'STARTTLS yok', "detail": 'Mail sunucu STARTTLS sunmuyor; mail düz metin gidebilir.'}},
+    'mail.no-mta-sts': {"tr": {"title": 'MTA-STS yok', "detail": 'MTA-STS politikası yayınlanmamış.'}},
+    'mail.mta-sts-no-policy': {"tr": {"title": 'MTA-STS politika dosyası yok', "detail": 'MTA-STS kaydı var ama policy dosyası getirilemedi.'}},
+    'mail.no-tlsrpt': {"tr": {"title": 'TLS-RPT yok', "detail": 'TLS raporlama (_smtp._tls) kaydı yok.'}},
+    'mail.mx-out-of-scope': {"tr": {"title": 'MX kapsam dışı (yoklanmadı)', "detail": "MX host'u izin listesi dışında; test için --scope'a ekle."}},
+    'mail.mx-unreachable': {"tr": {"title": "MX host'una bağlanılamadı", "detail": 'SMTP bağlantısı kurulamadı.'}},
+    'mail.extra-missing': {"tr": {"title": 'dnspython kurulu değil', "detail": "dns extra'sını kur: pip install recon-orchestrator[dns]"}},
+    'mail.lookup-unreliable': {"tr": {"title": 'MX sorgusu güvenilmez', "detail": 'Resolver yanıt vermedi; mail güvenliği kontrol edilemedi.'}},
+    'openapi.spec-exposed': {"tr": {"title": 'API şeması erişilebilir', "detail": 'Bir OpenAPI/Swagger şeması herkese açık.'}},
+    'openapi.no-spec': {"tr": {"title": 'API şeması bulunamadı', "detail": '--spec ya da yaygın yollarda OpenAPI/Swagger şeması yok.'}},
+    'openapi.missing-auth-enforcement': {"tr": {"title": 'Korumalı endpoint kimliksiz erişilebilir', "detail": 'Şema güvenli diyor ama endpoint kimliksiz 200 döndü.'}},
+    'openapi.public-endpoint': {"tr": {"title": 'Herkese açık endpoint', "detail": 'Operasyonun güvenlik gereksinimi yok ve erişilebilir.'}},
+    'ports.no-output': {"tr": {"title": 'nmap çıktı üretmedi', "detail": 'Araç kullanılamadı ya da yanıt yok.'}},
+    'web.dast-crawl-ran': {"tr": {"title": "Crawl edilen endpoint'lerde DAST çalıştı", "detail": "nuclei DAST şablonları parametreli URL'lere karşı çalıştırıldı."}},
+    'web.dast-no-input': {"tr": {"title": 'DAST atlandı: fuzz edilecek girdi yok', "detail": "Şema yok ve parametreli crawl URL'si yok."}},
     # crawl / cms / idor
     # headers M1 — CSP/HSTS/cookie quality
     "headers.csp-unsafe-inline": {"tr": {"title": "CSP zayıflığı: unsafe-inline",
@@ -304,12 +351,10 @@ CATALOG: dict[str, dict[str, dict[str, str]]] = {
                   "Güvenlik duvarı tüm portlara yanıt veriyor olabilir."}},
     "ports.open-ports": {"tr": {
         "title": "Açık portlar", "detail": "Tespit edilen açık portlar."}},
-    "ports.image-unavailable": {"tr": {"title": "nmap imajı indirilemedi"}},
     # tls
     "tls.config-ok": {"tr": {
         "title": "TLS yapılandırması sağlam",
         "detail": "testssl kayda değer (LOW+) bir sorun bildirmedi."}},
-    "tls.image-unavailable": {"tr": {"title": "testssl imajı indirilemedi"}},
     "tls.no-output": {"tr": {
         "title": "TLS: JSON çıktısı alınamadı",
         "detail": "testssl JSON dosyası oluşmadı."}},
@@ -319,7 +364,6 @@ CATALOG: dict[str, dict[str, dict[str, str]]] = {
     "web.profile-ran": {"tr": {
         "title": "nuclei profili '{profile}' çalıştı",
         "detail": "Ek nuclei etiket seti tarandı (profil: {profile})."}},
-    "web.image-unavailable": {"tr": {"title": "nuclei imajı indirilemedi"}},
 }
 
 # Report chrome (headings, labels) per language.

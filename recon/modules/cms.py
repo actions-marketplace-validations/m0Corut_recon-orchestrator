@@ -67,10 +67,6 @@ def analyze_home(target: str, cms: str, version: str) -> Finding:
         params={"cms": cms, "version": version or "?"})
 
 
-def _looks_like_body(status: int, body: str, needles: tuple[str, ...]) -> bool:
-    return status == 200 and any(n in (body or "").lower() for n in needles)
-
-
 def analyze_wordpress(probe: dict[str, tuple[int, str]]) -> list[Finding]:
     """Pure: findings from probed WordPress paths. probe: path -> (status, body)."""
     out: list[Finding] = []

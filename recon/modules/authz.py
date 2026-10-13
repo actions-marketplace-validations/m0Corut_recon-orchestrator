@@ -75,7 +75,7 @@ def run(target: str, ctx: dict) -> list[Finding]:
 
     findings: list[Finding] = []
     skipped = 0
-    sess_cookie_checked = False
+    cache_check_done = False
     for page in pages:
         url = urljoin(base, page.lstrip("/"))
         try:
@@ -101,7 +101,7 @@ def run(target: str, ctx: dict) -> list[Finding]:
         findings += analyze_pair(page, ra.status_code, len(ra.content),
                                  rn.status_code, len(rn.content))
         # authenticated pages should not be cached
-        if ra.status_code == 200 and not sess_cookie_checked:
+        if ra.status_code == 200 and not cache_check_done:
             cc = ra.headers.get("Cache-Control", "").lower()
             if "no-store" not in cc and "private" not in cc:
                 findings.append(Finding(
@@ -111,7 +111,7 @@ def run(target: str, ctx: dict) -> list[Finding]:
                     recommendation="Set Cache-Control: no-store on authenticated pages.",
                     rule_id=f"{NAME}.cacheable-auth-page",
                 ))
-            sess_cookie_checked = True
+            cache_check_done = True
 
     if not findings and not skipped:
         findings.append(Finding(
