@@ -59,6 +59,25 @@ CATALOG: dict[str, dict[str, dict[str, str]]] = {
     "content.unverified-path": {"tr": {
         "title": "Yol 200 döndü (doğrulanmadı): /{path}",
         "detail": "HTTP 200 ama hassas-içerik imzası eşleşmedi (olası soft-404)."}},
+    "hostinject.reflected-in-location": {"tr": {
+        "title": "Sahte host Location başlığına yansıyor (sinyal, manuel doğrula)",
+        "detail": "Sahte host Location başlığına yansıyor. İşlem öncesi manuel doğrula."}},
+    "hostinject.reflected-in-resource-url": {"tr": {
+        "title": "Sahte host kaynak/canonical URL'e yansıyor (sinyal, manuel doğrula)",
+        "detail": "Sahte host bir kaynak/canonical URL'e yansıyor. Manuel doğrula."}},
+    "hostinject.reflected-in-body": {"tr": {
+        "title": "Sahte host yanıt gövdesine yansıyor (sinyal, manuel doğrula)",
+        "detail": "Sahte host yanıt gövdesine yansıyor. Manuel doğrula."}},
+    "hostinject.cacheable-response": {"tr": {
+        "title": "Yansıtan yanıt önbelleğe alınabilir (sinyal, manuel doğrula)",
+        "detail": "Yansıtan yanıt önbellek başlıkları taşıyor; paylaşımlı bir "
+                  "önbellek zehirlenen içeriği sunabilir. Manuel doğrula."}},
+    "hostinject.no-reflection": {"tr": {
+        "title": "Host-header yansıması görülmedi",
+        "detail": "Hedef, sahte bir host başlığını yansıtmadı."}},
+    "hostinject.unreachable": {"tr": {
+        "title": "Host-header kontrolü hedefi getiremedi",
+        "detail": "Baseline isteği başarısız oldu."}},
     "passive.jwt-alg-none": {"tr": {"title": "JWT: alg=none",
         "detail": "JWT alg=none kullanıyor (imza doğrulanmıyor)."}},
     "passive.jwt-no-exp": {"tr": {"title": "JWT: exp yok",
@@ -439,6 +458,8 @@ MODULE_DESC_TR: dict[str, str] = {
     "graphql": "GraphQL ifşası: introspection, IDE, hata ayıklama (salt-okunur)",
     "redirect": "Yönlendirme parametrelerinde açık yönlendirme tespiti (salt-okunur)",
     "passive": "Pasif ekstralar: JWT/SRI/URL'de session/ifşa/robots/security.txt",
+    "hostinject": "Host-header injection / cache poisoning sinyalleri "
+                  "(salt-okunur, manuel doğrula)",
     "cms": "CMS tespiti + WordPress ifşa kontrolleri (salt-okunur)",
     "idor": "IDOR / nesne düzeyi yetki kontrolü taraması (salt-okunur, opt-in)",
 }
