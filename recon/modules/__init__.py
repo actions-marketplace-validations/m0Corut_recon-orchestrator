@@ -80,6 +80,12 @@ REGISTRY: dict[str, ModuleSpec] = {
     "jsrecon": ModuleSpec(
         "jsrecon", "recon.modules.jsrecon", False, True,
         "Client-side JS: leaked secrets, outdated libraries, exposed source maps"),
+    "graphql": ModuleSpec(
+        "graphql", "recon.modules.graphql", False, True,
+        "GraphQL exposure: introspection, IDE, debug errors (read-only)"),
+    "redirect": ModuleSpec(
+        "redirect", "recon.modules.redirect", False, True,
+        "Open-redirect detection on redirect-style params (read-only)"),
 }
 
 # Default execution order: cheap pure-Python modules first, Docker ones after.
