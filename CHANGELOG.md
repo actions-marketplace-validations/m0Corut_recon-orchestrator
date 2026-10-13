@@ -7,6 +7,17 @@ Format [Keep a Changelog](https://keepachangelog.com/) tabanlı; sürümleme
 ## [Unreleased]
 
 ### Added
+- Yeni tespit modülleri (hepsi opt-in, salt-okunur): `csrf` (form CSRF koruması),
+  `jsrecon` (JS'te sızan sır/eski kütüphane/source map), `graphql` (introspection/
+  IDE/debug), `redirect` (açık yönlendirme), `passive` (JWT/SRI/ifşa/robots/
+  security.txt), `hostinject` (host-header injection sinyalleri).
+- `headers` modülü CSP/HSTS/çerez *kalitesini* de denetliyor (yalnız varlık değil).
+- `content` modülü hassas dosyaları gövde imzasıyla doğruluyor (soft-404 yanlış
+  pozitifi giderildi); `web` modülüne `--nuclei-profile` / info-severity seçeneği.
+- `scope`: `scoped_post` ve `scoped_get(max_bytes=)` (stream + cap, gzip-bomb güvenli);
+  paylaşılan `_pages` HTML parser/fetcher.
+
+### Added
 - `cms` modülü: CMS tespiti (WordPress/Joomla/Drupal) + sürüm; WordPress için
   REST kullanıcı sayımı, açık debug log, xmlrpc.php ve readme kontrolleri
   (salt-okunur, opt-in). Gerçek WordPress'e karşı doğrulandı.

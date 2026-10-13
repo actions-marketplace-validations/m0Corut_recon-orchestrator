@@ -261,6 +261,12 @@ payload. Messages contain titles and rule ids, never evidence.
 | `crawl` | katana | Maps the attack surface: endpoints and query parameters, parsing linked JS; `--crawl-headless` drives a browser for single-page apps. Opt-in |
 | `cms` | nothing | Detects the CMS (WordPress/Joomla/Drupal) and version, and for WordPress checks REST user enumeration, an exposed debug log, xmlrpc.php and readme. Opt-in (`-m cms`) |
 | `idor` | nothing (`--auth-header` recommended) | Heuristic IDOR / broken object-level authorization probe: fetches a neighbouring object id and flags when a distinct object comes back (read-only, GET only). Opt-in (`-m idor`) |
+| `csrf` | nothing | State-changing HTML forms without an anti-CSRF token or SameSite session cookie; login forms reported separately. Passive. Opt-in (`-m csrf`) |
+| `jsrecon` | nothing | Same-origin JS: hard-coded secrets (masked), outdated/vulnerable libraries (retire.js-style), exposed `.js.map` source maps. Opt-in (`-m jsrecon`) |
+| `graphql` | nothing | GraphQL introspection enabled, exposed IDE, debug errors, GET queries — one fixed probe. Opt-in (`-m graphql`) |
+| `redirect` | nothing (crawl recommended) | Open redirect on redirect-style params, using a reserved canary; never follows. Opt-in (`-m redirect`) |
+| `passive` | nothing | JWT hygiene (decode-only), missing SRI, session id in URL, internal IP/host/path/stack-trace disclosure, mixed content, robots/security.txt. Opt-in (`-m passive`) |
+| `hostinject` | nothing | Host-header injection / cache-poisoning **signals** (verify manually); cache-buster on every probe. Opt-in (`-m hostinject`) |
 
 Run `recon modules` any time to see this list with each module's current
 description.
@@ -280,6 +286,8 @@ description.
 --discover [--scan-discovered]  # subdomain inventory (+ scan each live host)
 -m cms,idor                    # CMS/WordPress checks and the IDOR probe (opt-in modules)
 --idor-url https://s/x/1001    # an id-bearing URL for the idor module to test
+-m csrf,jsrecon,graphql,redirect,passive,hostinject  # more opt-in detection modules
+--nuclei-profile panels        # nuclei: also run panel/exposure/tech templates (web module)
 --suppress-file ignore.yml    # accepted risks (default: .reconignore.yml)
 --notify-env RECON_WEBHOOK    # Slack/Discord/Telegram/webhook on NEW findings
 --resume                      # continue an interrupted scan; finished modules are reused
@@ -630,6 +638,12 @@ rule_id bulunur, kanıt asla bulunmaz.
 | `crawl` | katana | Saldırı yüzeyini haritalar: endpoint ve sorgu parametreleri, bağlı JS'i ayrıştırır; SPA'lar için `--crawl-headless` tarayıcı sürer. Opt-in |
 | `cms` | hiçbir şey | CMS'i (WordPress/Joomla/Drupal) ve sürümü tespit eder; WordPress için REST kullanıcı sayımı, açık debug log, xmlrpc.php ve readme kontrolü. Opt-in (`-m cms`) |
 | `idor` | hiçbir şey (`--auth-header` önerilir) | Sezgisel IDOR / nesne düzeyi yetki taraması: komşu nesne id'sini getirip farklı bir nesne dönerse işaretler (salt-okunur, yalnızca GET). Opt-in (`-m idor`) |
+| `csrf` | hiçbir şey | Anti-CSRF token'ı veya SameSite oturum çerezi olmayan durum değiştiren formlar; giriş formları ayrı raporlanır. Pasif. Opt-in (`-m csrf`) |
+| `jsrecon` | hiçbir şey | Same-origin JS: gömülü sırlar (maskeli), eski/açıklı kütüphaneler (retire.js tarzı), açık `.js.map` source map'ler. Opt-in (`-m jsrecon`) |
+| `graphql` | hiçbir şey | GraphQL introspection açık, açık IDE, debug hataları, GET sorgusu — tek sabit probe. Opt-in (`-m graphql`) |
+| `redirect` | hiçbir şey (crawl önerilir) | Yönlendirme parametrelerinde açık yönlendirme; rezerve canary, asla takip etmez. Opt-in (`-m redirect`) |
+| `passive` | hiçbir şey | JWT hijyeni (yalnız decode), eksik SRI, URL'de session id, iç IP/host/yol/stack-trace ifşası, mixed content, robots/security.txt. Opt-in (`-m passive`) |
+| `hostinject` | hiçbir şey | Host-header injection / cache poisoning **sinyalleri** (manuel doğrula); her probe'da cache-buster. Opt-in (`-m hostinject`) |
 
 Bu listeyi ve her modülün güncel açıklamasını görmek için istediğin an
 `recon modules` çalıştır.
@@ -649,6 +663,8 @@ Bu listeyi ve her modülün güncel açıklamasını görmek için istediğin an
 --discover [--scan-discovered]  # alt alan adı envanteri (+ her canlı host'u tara)
 -m cms,idor                    # CMS/WordPress kontrolleri ve IDOR taraması (opt-in modüller)
 --idor-url https://s/x/1001    # idor modülünün test edeceği id içeren URL
+-m csrf,jsrecon,graphql,redirect,passive,hostinject  # daha fazla opt-in tespit modülü
+--nuclei-profile panels        # nuclei: panel/exposure/tech şablonlarını da çalıştır (web)
 --suppress-file ignore.yml    # kabul edilen riskler (varsayılan: .reconignore.yml)
 --notify-env RECON_WEBHOOK    # YENİ bulguda Slack/Discord/Telegram/webhook
 --resume                      # yarıda kalan taramayı sürdür; biten modüller yeniden çalışmaz
