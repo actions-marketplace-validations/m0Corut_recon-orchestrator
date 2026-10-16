@@ -37,3 +37,46 @@ def test_native_run_capture_missing_binary_returns_empty(monkeypatch):
 
 def test_docker_runner_name():
     assert DockerRunner().name == "docker"
+
+
+def test_native_run_capture_with_input_substitutes_and_cleans(monkeypatch):
+    import os
+    seen = {}
+
+    class R:
+        stdout = "ok"
+
+    def fake_run(cmd, **kw):
+        path = cmd[cmd.index("-l") + 1]
+        seen["path"] = path
+        with open(path, encoding="utf-8") as fh:
+            seen["content"] = fh.read()
+        return R()
+    monkeypatch.setattr("subprocess.run", fake_run)
+    out = NativeRunner().run_capture_with_input("nuclei", ["-l", "{in}"], 5, "{}", "s.json")
+    assert out == "ok" and seen["content"] == "{}"
+    assert not os.path.exists(seen["path"])
+
+
+def test_nuclei_gets_template_cache_volume(monkeypatch):
+    import recon.runner as runner
+    captured = {}
+
+    def fake_docker_run(image, args, *, timeout, volumes=None):
+        captured["volumes"] = volumes
+        return type("R", (), {"stdout": ""})()
+    monkeypatch.setattr(runner, "ensure_image", lambda image: True)
+    monkeypatch.setattr(runner, "docker_run", fake_docker_run)
+    runner.DockerRunner().run_capture("nuclei", ["-u", "x"], 5)
+    assert captured["volumes"] == {runner.NUCLEI_TEMPLATE_VOLUME: "/root/nuclei-templates"}
+
+
+def test_non_nuclei_tool_has_no_cache_volume(monkeypatch):
+    import recon.runner as runner
+
+    def fake_docker_run(image, args, *, timeout, volumes=None):
+        assert volumes == {}
+        return type("R", (), {"stdout": ""})()
+    monkeypatch.setattr(runner, "ensure_image", lambda image: True)
+    monkeypatch.setattr(runner, "docker_run", fake_docker_run)
+    runner.DockerRunner().run_capture("nmap", ["-v"], 5)

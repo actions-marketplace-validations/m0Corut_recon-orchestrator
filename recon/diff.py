@@ -77,8 +77,10 @@ def compute_diff(current: ScanResult, baseline: dict[str, dict]) -> DiffResult:
             diff.unchanged.append(f)
         else:
             diff.new.append(f)
+    # a finding that is still present but now suppressed is not "resolved"
+    still_present = seen_now | current.suppressed_fingerprints
     for fp, fdict in baseline.items():
-        if fp not in seen_now:
+        if fp not in still_present:
             diff.resolved.append(fdict)
     # most severe new first
     diff.new.sort(key=lambda f: (-f.rank, f.module, f.rule_id))

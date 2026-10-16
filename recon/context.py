@@ -24,6 +24,17 @@ class ScanContext:
     nuclei_tags: str | None = None
     content_threads: int = 10
     wordlist_entries: list[str] | None = None
+    discover_max_hosts: int = 200
+    dast: bool = False                  # nuclei DAST on a GET-only API spec copy
+    discover_timeout: int = 300
+    crawl_depth: int = 2
+    crawl_max_urls: int = 500
+    crawl_timeout: int = 300
+    crawl_headless: bool = False
+    idor_urls: list[str] | None = None
+    max_requests_per_module: int = 0  # 0 = unlimited; honoured by new probe modules
+    nuclei_profile: str = "default"   # default|panels|exposures|full
+    nuclei_info: bool = False         # include info-severity nuclei findings
     # authenticated (authz) module inputs
     auth_header: str | None = None
     auth_pages: list[str] | None = None

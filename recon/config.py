@@ -17,10 +17,14 @@ except ImportError:  # pragma: no cover - yaml is a runtime dependency
 TOP_KEYS = {
     "targets", "scope", "modules", "rate", "allow_private", "lang",
     "output_dir", "fail_on", "fail_on_new", "options",
+    "suppress_file", "notify_env", "notify_min_severity",
 }
 OPTION_KEYS = {
     "top_ports", "nuclei_tags", "nuclei_severity", "wordlist", "content_threads",
     "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout",
+    "discover_max_hosts", "discover_timeout",
+    "crawl_depth", "crawl_max_urls", "crawl_timeout", "crawl_headless",
+    "nuclei_profile", "nuclei_info",
 }
 
 
@@ -88,6 +92,14 @@ output_dir: recon_runs
 # fail_on: high        # any finding at this severity+ -> exit 2
 # fail_on_new: medium  # a NEW finding at this severity+ -> exit 2
 
+# Accepted risks (default: .reconignore.yml if it exists):
+# suppress_file: .reconignore.yml
+
+# Webhook notification on NEW findings. The URL is a secret, so it is read from
+# an environment variable (comma-separated for several webhooks):
+# notify_env: RECON_WEBHOOK
+# notify_min_severity: medium
+
 # Per-module options (optional):
 # options:
 #   top_ports: 100
@@ -95,6 +107,7 @@ output_dir: recon_runs
 #   nuclei_severity: low,medium,high,critical
 #   wordlist: ./paths.txt
 #   content_threads: 10
+#   discover_max_hosts: 200   # cap on names resolved by --discover
 """
 
 

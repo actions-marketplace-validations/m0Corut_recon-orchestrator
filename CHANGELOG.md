@@ -6,6 +6,101 @@ Format [Keep a Changelog](https://keepachangelog.com/) tabanlı; sürümleme
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-13
+
+### Fixed
+- Kod kalitesi turu: DNS/mail resolver timeout'u artık SPF/DMARC/MX yanlış pozitifi üretmiyor (lookup-unreliable); content erişilemez hedefte yanlış 'temiz' yerine unreachable; cors pure analyze + clean; ~46 bulgunun eksik Türkçe çevirisi eklendi (+ otomatik kapsam testi); Severity Literal, ölü kod temizliği.
+
+## [1.2.0] - 2026-10-13
+
+### Added
+- Yeni tespit modülleri (hepsi opt-in, salt-okunur): `csrf` (form CSRF koruması),
+  `jsrecon` (JS'te sızan sır/eski kütüphane/source map), `graphql` (introspection/
+  IDE/debug), `redirect` (açık yönlendirme), `passive` (JWT/SRI/ifşa/robots/
+  security.txt), `hostinject` (host-header injection sinyalleri).
+- `headers` modülü CSP/HSTS/çerez *kalitesini* de denetliyor (yalnız varlık değil).
+- `content` modülü hassas dosyaları gövde imzasıyla doğruluyor (soft-404 yanlış
+  pozitifi giderildi); `web` modülüne `--nuclei-profile` / info-severity seçeneği.
+- `scope`: `scoped_post` ve `scoped_get(max_bytes=)` (stream + cap, gzip-bomb güvenli);
+  paylaşılan `_pages` HTML parser/fetcher.
+
+### Added
+- `cms` modülü: CMS tespiti (WordPress/Joomla/Drupal) + sürüm; WordPress için
+  REST kullanıcı sayımı, açık debug log, xmlrpc.php ve readme kontrolleri
+  (salt-okunur, opt-in). Gerçek WordPress'e karşı doğrulandı.
+- `idor` modülü: sezgisel IDOR / nesne düzeyi yetki taraması; komşu nesne
+  id'sini getirip farklı bir nesne dönerse "olası IDOR" (medium) işaretler.
+  Salt-okunur (GET), `--idor-url` ve `--auth-header` destekler (opt-in).
+
+### Added
+- `--crawl-headless`: crawl/`--dast` sırasında gerçek (başsız) tarayıcı sürerek
+  tek-sayfa uygulamaların (SPA) çalışma anında oluşan endpoint'lerini keşfeder.
+  Chromium gerektirir; all-in-one imajı içerir.
+
+### Fixed
+- All-in-one Docker imajı: katana binary'si musl-linked (Alpine kaynaklı) olduğu
+  için glibc tabanlı imajda çalışmıyordu; `musl` paketi eklenerek düzeltildi.
+
+### Added
+- `crawl` modülü (katana): siteyi tarayıp endpoint/parametre haritası çıkarır
+  (host-içi, GET, bağlı JS'i de ayrıştırır). Keşfedilen URL'ler bağlamda saklanır.
+- `--dast` artık OpenAPI şeması yoksa da çalışır: siteyi crawl edip yalnızca
+  parametre taşıyan host-içi GET URL'lerini nuclei DAST ile fuzz eder.
+- `katana` araç olarak eklendi (Docker imajında da; `v1.8.0`).
+
+### Changed
+- nuclei şablonları kalıcı bir Docker volume'unda (`recon-nuclei-templates`)
+  önbelleğe alınır; her taramada ~14.000 şablonun yeniden indirilmesi önlenir.
+
+## [1.1.1] - 2026-10-12
+
+### Fixed
+- `recon doctor`: araç durum sütunu hizalı (uzun araç adları, ör. `subfinder`,
+  satırı kaydırıyordu).
+
+### Changed
+- README kurulum bölümü 1.1.0'a göre güncellendi (PyPI önerilen yöntem, sabit
+  imaj etiketi, araç sürümleri, 1.0'dan yükseltme notu); PyPI proje sayfası bu
+  sürümle güncel README'yi gösterir.
+
+## [1.1.0] - 2026-10-12
+
+### Added
+- Bastırma dosyası (`.reconignore.yml`, `--suppress-file`): gerekçe zorunlu,
+  `expires` tarihi, rule_id glob, hedef ve fingerprint filtresi. Bastırılanlar
+  sayımlara ve kapılara girmez, raporlarda ayrı listelenir.
+- Alt alan adı keşfi (`--discover`, `discover` modülü): crt.sh → Cert Spotter
+  yedekli sertifika şeffaflığı + varsa subfinder, canlı host yoklama, sahipsiz
+  CNAME / subdomain takeover tespiti. Yeni alt alan adları baseline diff ile
+  "yeni" bulgu olur. `--scan-discovered` ile keşfedilenler de taranır;
+  üçüncü taraf CNAME'ler asla yoklanmaz.
+- Uyarlanabilir hız sınırı: hedef 429/503 dönünce otomatik yavaşlama,
+  `Retry-After` desteği, ardından kademeli hızlanma; rapora
+  `meta.throttled_responses` yazılır.
+- `--resume`: modül bazlı checkpoint ile yarıda kalan taramayı sürdürme.
+- `--dast`: API şemasının yalnızca GET işlemlerini içeren ve sunucusu hedefe
+  sabitlenmiş kopyası üzerinde nuclei DAST.
+- Eklenti sistemi: `recon_orchestrator.modules` entry point grubu.
+- `recon trend`: taramalar arası geçmişi gösteren tek dosyalık HTML.
+- `subfinder` araç olarak eklendi (Docker imajında da var; `v2.17.0`).
+- Webhook bildirimi (`--notify`, `--notify-env`, `--notify-min-severity`):
+  yalnızca yeni bulgularda; Slack/Discord/Telegram/genel JSON. Kanıt gönderilmez.
+
+### Security
+- `authz`: kimlik başlığı yalnızca aynı origin'e (şema, host, port) gönderilir;
+  başka bir kapsam içi host'a veya https→http yönlendirmede düşürülür
+  (`scoped_get(auth_headers=...)`).
+- Kapsam: `--allow-private` artık gerçekten uygulanıyor. Yalnızca wildcard ile
+  eşleşen bir host özel/loopback/link-local adrese (ör. bulut metadata
+  `169.254.169.254`) çözülüyorsa istek reddedilir. Tam adıyla verilen host'lar
+  (ör. `http://localhost:8000`) etkilenmez.
+- Araç imajları sabitlendi: `nuclei:v3.11.1`, `nmap:7.98`, `testssl.sh:3.2`
+  (Dockerfile'da testssl `v3.2.4`).
+
+### Fixed
+- `authz`: getirilemeyen veya kapsam dışı sayfalar artık sessizce atlanmıyor;
+  `authz.page-not-checked` bilgi bulgusu üretiliyor ve rapor "açık yok" demiyor.
+
 ## [1.0.0] - 2026-10-12
 
 ### Added
@@ -48,6 +143,11 @@ Format [Keep a Changelog](https://keepachangelog.com/) tabanlı; sürümleme
 - İlk sürüm: 6 modül (headers, cors, content, ports, tls, web), Markdown/JSON/
   SARIF rapor, `--authorized` yetki kapısı, `--fail-on` CI çıkış kodu.
 
-[Unreleased]: https://github.com/m0Corut/recon-orchestrator/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/m0Corut/recon-orchestrator/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/m0Corut/recon-orchestrator/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/m0Corut/recon-orchestrator/compare/v1.1.1...v1.2.0
+[1.1.1]: https://github.com/m0Corut/recon-orchestrator/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/m0Corut/recon-orchestrator/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/m0Corut/recon-orchestrator/releases/tag/v1.0.0
 [0.2.0]: https://github.com/m0Corut/recon-orchestrator/releases/tag/v0.2.0
 [0.1.0]: https://github.com/m0Corut/recon-orchestrator/releases/tag/v0.1.0

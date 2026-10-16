@@ -15,6 +15,7 @@ import sys
 from datetime import datetime, timezone
 
 from . import __version__
+from .checkpoint import Checkpoint, path_for
 from .config import ConfigError, load_config, write_template
 from .context import ScanContext
 from .diff import (
@@ -33,6 +34,12 @@ from .report import to_json, to_markdown, to_sarif
 from .report_html import to_html
 from .runner import get_runner
 from .scope import Scope
+from .suppress import (
+    SuppressionError,
+    apply_suppressions,
+    load_suppressions,
+    resolve_path,
+)
 
 _RENDERERS = {
     "md": ("report.md", to_markdown),
@@ -88,7 +95,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Extra allowed hosts (comma-separated; *.example.com "
                         "supported). Default: target host only.")
     p.add_argument("--allow-private", action="store_true",
-                   help="Allow private/loopback addresses (for internal systems)")
+                   help="Let --scope wildcards reach hosts that resolve to "
+                        "private/loopback/link-local addresses (for internal "
+                        "systems). Hosts you name exactly are always allowed.")
     p.add_argument("--baseline", default=None,
                    help="Previous report.json or run directory to diff "
                         "new/resolved findings against")
@@ -97,6 +106,30 @@ def build_parser() -> argparse.ArgumentParser:
                         "run for this host as a baseline")
     p.add_argument("--fail-on-new", default=None,
                    help="Exit code 2 if a NEW finding reaches this severity")
+    p.add_argument("--discover", action="store_true",
+                   help="Also inventory subdomains (CT logs, subfinder if present), "
+                        "probe live hosts, flag dangling CNAMEs")
+    p.add_argument("--scan-discovered", action="store_true",
+                   help="With --discover: scan each live in-house subdomain too "
+                        "(only if you are authorized for all of them)")
+    p.add_argument("--resume", action="store_true",
+                   help="Reuse modules finished by an interrupted run of the same "
+                        "scan instead of re-running them")
+    p.add_argument("--idor-url", action="append", default=None, metavar="URL",
+                   help="URL with a numeric id for the idor module to test "
+                        "(repeatable); e.g. 'https://site/invoice/1001'")
+    p.add_argument("--crawl-headless", action="store_true",
+                   help="crawl/--dast: drive a headless browser so single-page-app "
+                        "endpoints are discovered (needs Chromium; all-in-one image has it)")
+    p.add_argument("--suppress-file", default=None,
+                   help="Accepted-risk file (YAML; default: .reconignore.yml if present)")
+    p.add_argument("--notify", action="append", default=None, metavar="URL",
+                   help="Webhook to notify on new findings (Slack/Discord/Telegram/"
+                        "generic JSON; repeatable)")
+    p.add_argument("--notify-env", default=None, metavar="VAR",
+                   help="Read webhook URL(s) from this env var, comma-separated (safer)")
+    p.add_argument("--notify-min-severity", default=None,
+                   help="Only notify for new findings at this severity+ (default: medium)")
     p.add_argument("--jobs", type=int, default=None,
                    help="Max concurrent modules (default: all)")
     p.add_argument("--serial", action="store_true",
@@ -114,6 +147,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="A path requiring login (repeatable); authz tests these")
     p.add_argument("--spec", default=None,
                    help="OpenAPI/Swagger spec URL/path (for the openapi module)")
+    p.add_argument("--dast", action="store_true",
+                   help="web module: also run nuclei DAST (fuzzing) templates on the "
+                        "GET operations of the API spec (sends attack payloads)")
     p.add_argument("--github-issues", default=None, metavar="OWNER/REPO",
                    help="Open an issue in this repo for new findings (needs GITHUB_TOKEN)")
     p.add_argument("--issue-min-severity", default="high",
@@ -130,6 +166,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-v", "--version", action="version",
                    version=f"recon-orchestrator {__version__}")
     return p
+
+
+def _notify_urls(args, cfg: dict) -> list[str]:
+    urls = list(args.notify or [])
+    env_var = args.notify_env or cfg.get("notify_env")
+    if env_var:
+        urls += [u.strip() for u in os.environ.get(env_var, "").split(",") if u.strip()]
+    return urls
 
 
 def _load_wordlist(path: str) -> list[str]:
@@ -175,27 +219,36 @@ def _run_diff_command(argv: list[str]) -> int:
     return 2 if new else 0
 
 
-def _scan_one(target: str, settings: dict) -> int:
-    """Run a single target end to end; returns its exit code (0 ok, 2 gate hit)."""
+def _scan_one(target: str, settings: dict) -> tuple[int, list[str]]:
+    """Run a single target end to end.
+
+    Returns (exit code: 0 ok / 1 error / 2 gate hit, live URLs found by the
+    discover module, if it ran).
+    """
     t = ui(settings["lang"])
     try:
         selected = resolve_modules(settings["modules"])
     except ValueError as e:
         print(f"{t['err']}: {e}", file=sys.stderr)
-        return 1
+        return 1, []
 
     scope = Scope.for_target(target, extra=settings["scope"],
                              allow_private=settings["allow_private"])
+    limiter = RateLimiter(settings["rate"])
     ctx = ScanContext(rate=settings["rate"], http_timeout=15, scope=scope,
-                      limiter=RateLimiter(settings["rate"]),
+                      limiter=limiter,
                       runner=get_runner(settings["runner"]),
                       auth_header=settings["auth_header"],
                       auth_pages=settings["auth_pages"])
     if settings.get("spec"):
         ctx.extra["spec"] = settings["spec"]
+    ctx.dast = bool(settings.get("dast"))
+    ctx.crawl_headless = bool(settings.get("crawl_headless"))
+    ctx.idor_urls = settings.get("idor_urls")
     opts = settings["options"]
     for field in ("top_ports", "nuclei_tags", "nuclei_severity", "content_threads",
-                  "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout"):
+                  "http_timeout", "nmap_timeout", "tls_timeout", "nuclei_timeout",
+                  "discover_max_hosts", "discover_timeout"):
         if field in opts:
             setattr(ctx, field, opts[field])
     wordlist = settings["wordlist"] or opts.get("wordlist")
@@ -214,18 +267,41 @@ def _scan_one(target: str, settings: dict) -> int:
                 print(f"[*] {target}: {msg} {t['running']}", file=sys.stderr)
         elif kind == "done" and not quiet:
             print(f"[✓] {msg}", file=sys.stderr)
+        elif kind == "resume":
+            ran.append(msg)
+            if not quiet:
+                print(f"[↺] {msg}: {t['resumed']}", file=sys.stderr)
         elif kind == "skip" and not quiet:
             print(f"[~] {msg}: {t['skipped']}", file=sys.stderr)
         elif kind == "error":
             print(f"[!] {msg}", file=sys.stderr)
 
+    checkpoint = Checkpoint(path_for(settings["output_dir"], _host_slug(target)),
+                            target, selected)
+    if settings.get("resume"):
+        completed = checkpoint.load()
+    else:
+        completed = {}
+        checkpoint.clear()          # a fresh run must not leave stale state behind
+
     result = run_scan(target, selected, ctx,
                       docker_ok=docker_available(), on_event=on_event,
-                      jobs=settings["jobs"], serial=settings["serial"])
+                      jobs=settings["jobs"], serial=settings["serial"],
+                      completed=completed, on_module_done=checkpoint.record)
+
+    if settings.get("suppressions"):
+        expired = apply_suppressions(result, settings["suppressions"])
+        for rule in expired:
+            print(f"[!] {t['suppress_expired'].format(rule=rule.rule_id, date=rule.expires)}",
+                  file=sys.stderr)
 
     meta = {"modules": ran, "rate": settings["rate"], "version": __version__,
             "started_at": started_at,
             "ended_at": datetime.now(timezone.utc).isoformat()}
+    if limiter.throttled:
+        # the target answered 429/503: say so, since findings may be incomplete
+        meta["throttled_responses"] = limiter.throttled
+        print(f"[!] {t['throttled'].format(n=limiter.throttled)}", file=sys.stderr)
 
     # Optional: analyst summary (opt-in)
     if settings.get("analyst"):
@@ -260,6 +336,7 @@ def _scan_one(target: str, settings: dict) -> int:
 
     run_dir = _write_reports(result, meta, settings["output_dir"],
                              settings["lang"], diff, settings["formats"])
+    checkpoint.clear()
 
     # Optional: open GitHub issues for new findings
     if settings.get("github_issues") and diff is not None:
@@ -280,21 +357,55 @@ def _scan_one(target: str, settings: dict) -> int:
             except Exception as e:  # noqa: BLE001
                 print(f"[!] {t['github_error']} {e}", file=sys.stderr)
 
+    # Optional: webhook notification for new findings
+    if settings.get("notify_urls"):
+        from .i18n import localize
+        from .notify import select_new, send
+        candidates = diff.new if diff is not None else result.sorted()
+        to_send = select_new(candidates, settings["notify_min_severity"])
+        if to_send:
+            errs = send(settings["notify_urls"], target, to_send, run_dir,
+                        localize, settings["lang"])
+            for err in errs:
+                print(f"[!] {t['notify_error']} {err}", file=sys.stderr)
+            sent = len(settings["notify_urls"]) - len(errs)
+            if sent and not quiet:
+                print(f"[+] {t['notify_sent'].format(n=sent)}", file=sys.stderr)
+
     counts = result.counts()
     summary = ", ".join(f"{counts[s]} {s}" for s in counts if counts[s]) or t["no_findings_short"]
     print(f"\n[+] {t['scan_done']} {run_dir}", file=sys.stderr)
     print(f"    {summary}", file=sys.stderr)
+    if result.suppressed:
+        print(f"    {t['suppressed_line'].format(n=len(result.suppressed))}",
+              file=sys.stderr)
     if diff is not None:
         print(f"    {t['baseline_line'].format(new=len(diff.new), resolved=len(diff.resolved))}",
               file=sys.stderr)
 
+    discovered = list(ctx.extra.get("discovered_urls", []))
     if settings["fail_on_new"] and exceeds_new_threshold(
             diff or compute_diff(result, {}), settings["fail_on_new"]):
-        return 2
+        return 2, discovered
     if settings["fail_on"]:
         threshold = SEVERITY_RANK.get(settings["fail_on"].lower())
         if threshold is not None and result.max_rank() >= threshold:
-            return 2
+            return 2, discovered
+    return 0, discovered
+
+
+def _run_trend_command(argv: list[str]) -> int:
+    """`recon trend [output_dir]` - one HTML page with each host's history."""
+    from .trend import write_trend
+
+    p = argparse.ArgumentParser(prog="recon trend")
+    p.add_argument("output_dir", nargs="?", default="recon_runs")
+    p.add_argument("-o", "--out", default=None,
+                   help="Output file (default: <output_dir>/trend.html)")
+    p.add_argument("--last", type=int, default=20, help="Runs per host (default: 20)")
+    p.add_argument("--lang", default=DEFAULT_LANG, choices=["en", "tr"])
+    a = p.parse_args(argv)
+    print(write_trend(a.output_dir, a.out, a.last, a.lang))
     return 0
 
 
@@ -318,9 +429,11 @@ def _run_doctor_command(lang: str) -> int:
     print(f"{t['doctor_title']}\n")
     print(f"  {t['docker_label']}: {t['present'] if docker_available() else t['missing']}")
     print(f"  {t['native_tools_label']}")
+    labels = {tool: f"{tool} ({binary})" for tool, (_image, binary) in TOOLS.items()}
+    width = max(len(label) for label in labels.values())   # one status column
     for tool, (_image, binary) in TOOLS.items():
         found = shutil.which(binary)
-        print(f"    {tool:8s} ({binary}): {found or t['missing']}")
+        print(f"    {labels[tool]:<{width}} : {found or t['missing']}")
     print(f"  {t['optional_packages_label']}")
     for pkg in ("yaml", "dns"):
         try:
@@ -334,12 +447,17 @@ def _run_doctor_command(lang: str) -> int:
 def main(argv: list[str] | None = None) -> int:
     raw = list(sys.argv[1:] if argv is None else argv)
     pre_lang = _peek_lang(raw)
+    from .modules import load_plugins
+    for warning in load_plugins():
+        print(f"[!] {warning}", file=sys.stderr)
     if raw and raw[0] == "diff":
         return _run_diff_command(raw[1:])
     if raw and raw[0] == "modules":
         return _run_modules_command(pre_lang)
     if raw and raw[0] == "doctor":
         return _run_doctor_command(pre_lang)
+    if raw and raw[0] == "trend":
+        return _run_trend_command(raw[1:])
     if raw and raw[0] == "init":
         path = raw[1] if len(raw) > 1 else "recon.yaml"
         t = ui(pre_lang)
@@ -397,6 +515,9 @@ def main(argv: list[str] | None = None) -> int:
                         if args.auth_header_env else args.auth_header),
         "auth_pages": args.auth_page,
         "spec": args.spec,
+        "dast": args.dast,
+        "crawl_headless": args.crawl_headless,
+        "idor_urls": args.idor_url,
         "github_issues": args.github_issues,
         "issue_min_severity": args.issue_min_severity,
         "close_resolved": args.close_resolved,
@@ -405,10 +526,22 @@ def main(argv: list[str] | None = None) -> int:
         "analyst_base_url": args.analyst_base_url,
         "analyst_include_evidence": args.analyst_include_evidence,
         "quiet": args.quiet,
+        "resume": args.resume,
         "formats": ([f.strip() for f in args.format.split(",") if f.strip()]
                     if args.format else None),
         "options": cfg.get("options", {}),
+        "notify_urls": _notify_urls(args, cfg),
+        "notify_min_severity": (args.notify_min_severity
+                                or cfg.get("notify_min_severity", "medium")),
+        "suppressions": [],
     }
+    suppress_path = resolve_path(args.suppress_file or cfg.get("suppress_file"))
+    if suppress_path:
+        try:
+            settings["suppressions"] = load_suppressions(suppress_path)
+        except SuppressionError as e:
+            print(f"{t['err']} ({t['err_suppress']}): {e}", file=sys.stderr)
+            return 1
     if settings["formats"]:
         bad = [f for f in settings["formats"] if f not in _RENDERERS]
         if bad:
@@ -416,9 +549,34 @@ def main(argv: list[str] | None = None) -> int:
                   file=sys.stderr)
             return 1
 
+    if args.scan_discovered and not args.discover:
+        print(f"{t['err']}: --scan-discovered requires --discover", file=sys.stderr)
+        return 1
+    if args.discover:
+        try:
+            names = resolve_modules(settings["modules"])
+        except ValueError as e:
+            print(f"{t['err']}: {e}", file=sys.stderr)
+            return 1
+        settings["modules"] = names + ([] if "discover" in names else ["discover"])
+
     rc = 0
+    done = {_normalize_target(x).rstrip("/") for x in targets}
     for raw_target in targets:
-        rc = max(rc, _scan_one(_normalize_target(raw_target), settings))
+        code, discovered = _scan_one(_normalize_target(raw_target), settings)
+        rc = max(rc, code)
+        extra = [u for u in discovered if u.rstrip("/") not in done]
+        if not extra:
+            continue
+        if not args.scan_discovered:
+            if not settings["quiet"]:
+                print(f"[i] {t['discovered_hint'].format(n=len(extra))}", file=sys.stderr)
+            continue
+        print(f"[*] {t['discovered_scanning'].format(n=len(extra))}", file=sys.stderr)
+        sub = dict(settings, modules=[m for m in settings["modules"] if m != "discover"])
+        for url in extra:
+            done.add(url.rstrip("/"))
+            rc = max(rc, _scan_one(url, sub)[0])
     return rc
 
 

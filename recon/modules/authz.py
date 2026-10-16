@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from urllib.parse import urljoin
 
+import requests
+
 from ..findings import Finding
 from ..scope import Scope, ScopeViolation, scoped_get
 
@@ -72,19 +74,34 @@ def run(target: str, ctx: dict) -> list[Finding]:
     base = target.rstrip("/") + "/"
 
     findings: list[Finding] = []
-    sess_cookie_checked = False
+    skipped = 0
+    cache_check_done = False
     for page in pages:
         url = urljoin(base, page.lstrip("/"))
         try:
-            ra = scoped_get(url, scope, timeout=timeout, headers=headers,
+            ra = scoped_get(url, scope, timeout=timeout, auth_headers=headers,
                             limiter=limiter)
             rn = scoped_get(url, scope, timeout=timeout, limiter=limiter)
-        except (ScopeViolation, Exception):
+        except (ScopeViolation, requests.RequestException) as e:
+            # A skipped page must not read as "protected": report it.
+            skipped += 1
+            reason = f"out of scope ({e})" if isinstance(e, ScopeViolation) \
+                else type(e).__name__
+            findings.append(Finding(
+                NAME, f"Page not checked: {page}", "info",
+                f"The page could not be fetched, so its access control was not "
+                f"verified: {reason}.",
+                evidence=f"{page}: {reason}",
+                recommendation="Check the path and that the target is reachable, "
+                               "then re-run.",
+                rule_id=f"{NAME}.page-not-checked",
+                params={"page": page, "reason": reason},
+            ))
             continue
         findings += analyze_pair(page, ra.status_code, len(ra.content),
                                  rn.status_code, len(rn.content))
         # authenticated pages should not be cached
-        if ra.status_code == 200 and not sess_cookie_checked:
+        if ra.status_code == 200 and not cache_check_done:
             cc = ra.headers.get("Cache-Control", "").lower()
             if "no-store" not in cc and "private" not in cc:
                 findings.append(Finding(
@@ -94,9 +111,9 @@ def run(target: str, ctx: dict) -> list[Finding]:
                     recommendation="Set Cache-Control: no-store on authenticated pages.",
                     rule_id=f"{NAME}.cacheable-auth-page",
                 ))
-            sess_cookie_checked = True
+            cache_check_done = True
 
-    if not findings:
+    if not findings and not skipped:
         findings.append(Finding(
             NAME, "authz: no access-control gaps found", "info",
             "Protected pages required credentials as expected.",

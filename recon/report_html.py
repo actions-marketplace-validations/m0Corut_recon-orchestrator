@@ -59,6 +59,15 @@ def to_html(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG,
         items = "".join(f"<li>{_esc(e)}</li>" for e in result.errors)
         errors_html = f"<h2>{_esc(t['errors'])}</h2><ul class='err'>{items}</ul>"
 
+    suppressed_html = ""
+    if result.suppressed:
+        items = "".join(
+            f"<li><b>{f.severity.upper()}</b> {_esc(localize(f, lang)[0])} "
+            f"<code>{_esc(f.rule_id)}</code> — {_esc(t['reason'])}: {_esc(reason)}</li>"
+            for f, reason in result.suppressed)
+        suppressed_html = (f"<h2>{_esc(t['suppressed'])}</h2>"
+                           f"<ul class='supp'>{items}</ul>")
+
     analyst_html = ""
     if meta.get("analyst_summary"):
         body_txt = _esc(meta["analyst_summary"]).replace("\n", "<br>")
@@ -103,6 +112,7 @@ def to_html(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG,
   code {{ background:#f6f8fa; padding:1px 5px; border-radius:4px; font-size:12px; word-break:break-all; }}
   .new {{ background:#1a7f37; color:#fff; font-size:10px; padding:1px 6px; border-radius:8px; }}
   .err li {{ color:#d1242f; }}
+  .supp li {{ color:#6e7781; font-size:13px; }}
   .controls {{ margin:14px 0; display:flex; gap:10px; flex-wrap:wrap; }}
   select {{ padding:5px; }}
   .rec,.ev {{ margin-top:4px; }}
@@ -132,6 +142,7 @@ def to_html(result: ScanResult, meta: dict, lang: str = DEFAULT_LANG,
   <table><thead><tr>
     <th>{_esc(t['severity'])}</th><th>{_esc(t['module'])}</th><th>{_esc(t['title_col'])}</th>
   </tr></thead><tbody>{''.join(rows)}</tbody></table>
+  {suppressed_html}
   {errors_html}
   {analyst_html}
 </main>

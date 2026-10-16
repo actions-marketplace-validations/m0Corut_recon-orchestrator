@@ -1,3 +1,3 @@
 """recon-orchestrator: authorized security-scan tool orchestrator."""
 
-__version__ = "1.0.0"
+__version__ = "1.2.1"

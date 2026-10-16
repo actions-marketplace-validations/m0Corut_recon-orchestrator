@@ -117,10 +117,26 @@ def run(target: str, ctx: dict) -> list[Finding]:
     resolver.timeout = per_query
     resolver.lifetime = per_query
 
-    def txt(name: str) -> list[str]:
+    # "absent" (NXDOMAIN/NoAnswer) means the resolver works and the record is not
+    # published; a resolver error (timeout/no nameservers) means we cannot tell,
+    # so we must not report SPF/DMARC/CAA as "missing" off an unreachable resolver.
+    state = {"reachable": False, "errored": False}
+
+    def _query(name: str, rtype: str):
         try:
-            answers = resolver.resolve(name, "TXT")
+            ans = resolver.resolve(name, rtype)
+            state["reachable"] = True
+            return ans
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+            state["reachable"] = True
+            return None
         except Exception:
+            state["errored"] = True
+            return None
+
+    def txt(name: str) -> list[str]:
+        answers = _query(name, "TXT")
+        if answers is None:
             return []
         out = []
         for a in answers:
@@ -129,15 +145,17 @@ def run(target: str, ctx: dict) -> list[Finding]:
         return out
 
     def has(name: str, rtype: str) -> bool:
-        try:
-            resolver.resolve(name, rtype)
-            return True
-        except Exception:
-            return False
+        return _query(name, rtype) is not None
 
     findings: list[Finding] = []
     has_mx = has(domain, "MX")
-    findings += analyze_spf(txt(domain), has_mx)
+    spf_txt = txt(domain)
+    if not state["reachable"] and state["errored"]:
+        return [Finding(NAME, "DNS lookups unreliable", "info",
+                        "The resolver did not answer (timeout / no nameservers), so "
+                        "SPF/DMARC/CAA could not be checked; results would be guesses.",
+                        rule_id=f"{NAME}.lookup-unreliable")]
+    findings += analyze_spf(spf_txt, has_mx)
     findings += analyze_dmarc(txt(f"_dmarc.{domain}"))
     findings += analyze_caa(has(domain, "CAA"))
 

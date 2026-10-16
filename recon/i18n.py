@@ -16,6 +16,274 @@ DEFAULT_LANG = "en"
 # msg_key -> {lang -> {title?, detail?, recommendation?}} with {param} placeholders.
 # Only Turkish is listed; English comes from the module-authored text.
 CATALOG: dict[str, dict[str, dict[str, str]]] = {
+    # --- quality pass: previously English-only findings ---
+    'authz.missing-access-control': {"tr": {"title": 'Korumalı sayfa kimliksiz erişilebilir', "detail": 'Sayfa kimlik bilgisi olmadan 200 dönüyor; erişim kontrolü eksik olabilir.'}},
+    'authz.cacheable-auth-page': {"tr": {"title": 'Kimlik doğrulanmış sayfa önbelleklenebilir', "detail": 'Yanıtta Cache-Control: no-store/private yok.'}},
+    'authz.no-credentials': {"tr": {"title": 'Kimlik bilgisi verilmedi', "detail": 'authz modülü --auth-header ve --auth-page ile çalışır.'}},
+    'authz.no-pages': {"tr": {"title": 'Giriş gerektiren sayfa listelenmedi', "detail": '--auth-page ile giriş gerektiren yollar ver.'}},
+    'authz.clean': {"tr": {"title": 'authz: erişim kontrolü açığı yok', "detail": 'Korumalı sayfalar beklendiği gibi kimlik istedi.'}},
+    'cms.wp-user-enum': {"tr": {"title": 'WordPress REST ile kullanıcı sayımı', "detail": 'REST users endpoint kullanıcı adlarını listeliyor; kimlik saldırılarını kolaylaştırır.'}},
+    'cms.wp-debug-log': {"tr": {"title": 'WordPress debug log herkese açık', "detail": '/wp-content/debug.log erişilebilir; yol/sorgu/sır sızdırabilir.'}},
+    'cms.wp-xmlrpc': {"tr": {"title": 'WordPress XML-RPC açık', "detail": 'xmlrpc.php erişilebilir; brute-force amplifikasyonu ve pingback saldırılarına yarar.'}},
+    'cms.wp-readme': {"tr": {"title": 'WordPress readme.html sürümü açığa çıkarıyor', "detail": 'readme.html okunabilir ve tam sürümü ifşa ediyor.'}},
+    'cms.none': {"tr": {"title": 'Bilinen CMS tespit edilmedi', "detail": 'Ana sayfada WordPress/Joomla/Drupal parmak izi yok.'}},
+    'cms.unreachable': {"tr": {"title": 'CMS kontrolü hedefi getiremedi', "detail": 'Ana sayfa getirilemedi.'}},
+    'content.unreachable': {"tr": {"title": 'İçerik keşfi hedefe ulaşamadı', "detail": 'Baz istek başarısız oldu; hiçbir yol yoklanmadı.'}},
+    'cors.clean': {"tr": {"title": 'CORS: Origin yansıması yok', "detail": "Sunucu saldırgan Origin'ini yansıtmadı."}},
+    'crawl.empty': {"tr": {"title": 'Crawl ek endpoint bulamadı', "detail": 'katana hedef dışında host-içi URL bulamadı.'}},
+    'discover.ct-unavailable': {"tr": {"title": 'Sertifika şeffaflığı sorgusu başarısız', "detail": 'Hiçbir CT kaynağı sorgulanamadı; sonuçlar eksik olabilir.'}},
+    'dns.spf-missing': {"tr": {"title": 'SPF kaydı yok', "detail": 'Alan mail gönderiyor (MX var) ama SPF kaydı yok.'}},
+    'dns.spf-allow-all': {"tr": {"title": 'SPF herkese izin veriyor (+all)', "detail": "SPF '+all' herkesin bu alan adıyla mail göndermesine izin verir."}},
+    'dns.spf-softfail': {"tr": {"title": 'SPF softfail (~all)', "detail": 'SPF ~all ile bitiyor; sahte mail yine de geçebilir.'}},
+    'dns.spf-no-all': {"tr": {"title": "SPF 'all' niteleyicisi yok", "detail": "SPF kaydı bir 'all' mekanizmasıyla bitmiyor."}},
+    'dns.dmarc-missing': {"tr": {"title": 'DMARC kaydı yok', "detail": 'Alan adının DMARC kaydı yok; sahtecilik engellenmez.'}},
+    'dns.dmarc-policy-none': {"tr": {"title": 'DMARC politikası none', "detail": 'DMARC p=none yalnızca izler; sahteciliği engellemez.'}},
+    'dns.dmarc-no-rua': {"tr": {"title": 'DMARC rapor adresi (rua) yok', "detail": 'DMARC var ama toplu rapor adresi tanımlı değil.'}},
+    'dns.caa-missing': {"tr": {"title": 'CAA kaydı yok', "detail": 'CAA kaydı yok; herhangi bir CA bu alana sertifika verebilir.'}},
+    'dns.dkim-present': {"tr": {"title": 'DKIM mevcut', "detail": 'DKIM anahtar(lar)ı bulundu.'}},
+    'dns.dkim-none': {"tr": {"title": 'DKIM bulunamadı', "detail": 'Yaygın seçicilerde DKIM anahtarı bulunamadı.'}},
+    'dns.extra-missing': {"tr": {"title": 'dnspython kurulu değil', "detail": "dns extra'sını kur: pip install recon-orchestrator[dns]"}},
+    'dns.lookup-unreliable': {"tr": {"title": 'DNS sorguları güvenilmez', "detail": 'Resolver yanıt vermedi (timeout/nameserver yok); SPF/DMARC/CAA kontrol edilemedi.'}},
+    'headers.scope-blocked': {"tr": {"title": 'Kapsam dışı yönlendirme engellendi', "detail": 'Bir yönlendirme izin verilen kapsamın dışına işaret etti.'}},
+    'idor.no-targets': {"tr": {"title": 'Test edilecek id içeren URL yok', "detail": "--idor-url ver ya da crawl modülüyle id içeren URL'ler keşfet."}},
+    'idor.clean': {"tr": {"title": 'IDOR sinyali bulunamadı', "detail": "Test edilen id içeren endpoint'lerde komşu id farklı nesne döndürmedi."}},
+    'mail.no-mx': {"tr": {"title": 'MX kaydı yok', "detail": 'Alan adının MX kaydı yok (mail servisi yok mu?).'}},
+    'mail.no-starttls': {"tr": {"title": 'STARTTLS yok', "detail": 'Mail sunucu STARTTLS sunmuyor; mail düz metin gidebilir.'}},
+    'mail.no-mta-sts': {"tr": {"title": 'MTA-STS yok', "detail": 'MTA-STS politikası yayınlanmamış.'}},
+    'mail.mta-sts-no-policy': {"tr": {"title": 'MTA-STS politika dosyası yok', "detail": 'MTA-STS kaydı var ama policy dosyası getirilemedi.'}},
+    'mail.no-tlsrpt': {"tr": {"title": 'TLS-RPT yok', "detail": 'TLS raporlama (_smtp._tls) kaydı yok.'}},
+    'mail.mx-out-of-scope': {"tr": {"title": 'MX kapsam dışı (yoklanmadı)', "detail": "MX host'u izin listesi dışında; test için --scope'a ekle."}},
+    'mail.mx-unreachable': {"tr": {"title": "MX host'una bağlanılamadı", "detail": 'SMTP bağlantısı kurulamadı.'}},
+    'mail.extra-missing': {"tr": {"title": 'dnspython kurulu değil', "detail": "dns extra'sını kur: pip install recon-orchestrator[dns]"}},
+    'mail.lookup-unreliable': {"tr": {"title": 'MX sorgusu güvenilmez', "detail": 'Resolver yanıt vermedi; mail güvenliği kontrol edilemedi.'}},
+    'openapi.spec-exposed': {"tr": {"title": 'API şeması erişilebilir', "detail": 'Bir OpenAPI/Swagger şeması herkese açık.'}},
+    'openapi.no-spec': {"tr": {"title": 'API şeması bulunamadı', "detail": '--spec ya da yaygın yollarda OpenAPI/Swagger şeması yok.'}},
+    'openapi.missing-auth-enforcement': {"tr": {"title": 'Korumalı endpoint kimliksiz erişilebilir', "detail": 'Şema güvenli diyor ama endpoint kimliksiz 200 döndü.'}},
+    'openapi.public-endpoint': {"tr": {"title": 'Herkese açık endpoint', "detail": 'Operasyonun güvenlik gereksinimi yok ve erişilebilir.'}},
+    'ports.no-output': {"tr": {"title": 'nmap çıktı üretmedi', "detail": 'Araç kullanılamadı ya da yanıt yok.'}},
+    'web.dast-crawl-ran': {"tr": {"title": "Crawl edilen endpoint'lerde DAST çalıştı", "detail": "nuclei DAST şablonları parametreli URL'lere karşı çalıştırıldı."}},
+    'web.dast-no-input': {"tr": {"title": 'DAST atlandı: fuzz edilecek girdi yok', "detail": "Şema yok ve parametreli crawl URL'si yok."}},
+    # crawl / cms / idor
+    # headers M1 — CSP/HSTS/cookie quality
+    "headers.csp-unsafe-inline": {"tr": {"title": "CSP zayıflığı: unsafe-inline",
+        "detail": "script-src nonce/hash olmadan 'unsafe-inline' izni veriyor."}},
+    "headers.csp-unsafe-eval": {"tr": {"title": "CSP zayıflığı: unsafe-eval",
+        "detail": "script-src 'unsafe-eval' izni veriyor."}},
+    "headers.csp-wildcard-source": {"tr": {"title": "CSP zayıflığı: joker kaynak",
+        "detail": "{token} geniş/joker bir kaynak içeriyor."}},
+    "headers.csp-missing-object-src": {"tr": {"title": "CSP: object-src yok",
+        "detail": "object-src yok ve default-src ile kısıtlanmamış."}},
+    "headers.csp-missing-base-uri": {"tr": {"title": "CSP: base-uri yok",
+        "detail": "base-uri direktifi yok."}},
+    "headers.csp-nonce-without-strict-dynamic": {"tr": {
+        "title": "CSP: nonce var, strict-dynamic yok",
+        "detail": "Nonce/hash var ama 'strict-dynamic' yok (allow-list bypass sınıfı)."}},
+    "headers.csp-report-only": {"tr": {"title": "CSP yalnızca Report-Only",
+        "detail": "CSP yalnızca rapor modunda; uygulanmıyor."}},
+    "headers.csp-unparseable": {"tr": {"title": "CSP ayrıştırılamadı",
+        "detail": "CSP başlığı ayrıştırılamadı."}},
+    "headers.hsts-short-max-age": {"tr": {"title": "HSTS max-age kısa",
+        "detail": "max-age={max_age} (< 15552000, ~180g)."}},
+    "headers.hsts-no-subdomains": {"tr": {"title": "HSTS includeSubDomains yok",
+        "detail": "Alt alan adları HSTS kapsamında değil."}},
+    "headers.hsts-over-http": {"tr": {"title": "HSTS HTTP üzerinden",
+        "detail": "Düz-HTTP yanıtındaki HSTS tarayıcılarca yok sayılır."}},
+    "headers.cookie-samesite-none-insecure": {"tr": {
+        "title": "Çerez SameSite=None, Secure yok: {cookie}",
+        "detail": "SameSite=None, Secure gerektirir; aksi halde reddedilir."}},
+    "headers.cookie-session-over-http": {"tr": {
+        "title": "Oturum çerezi HTTP üzerinden: {cookie}",
+        "detail": "Oturum çerezi düz-HTTP yanıtında ayarlandı."}},
+    "headers.cookie-broad-domain": {"tr": {
+        "title": "Çerez geniş alana kapsamlı: {cookie}",
+        "detail": "Domain={domain}, kardeş alt alan adlarını da kapsıyor."}},
+    "headers.cookie-no-host-prefix": {"tr": {
+        "title": "Oturum çerezinde __Host-/__Secure- öneki yok: {cookie}",
+        "detail": "Önek, çerezi fiksasyon/üzerine yazmaya karşı sertleştirir."}},
+    "content.exposed-panel": {"tr": {
+        "title": "Açık panel/endpoint: /{path}",
+        "detail": "HTTP {status} döndü (catch-all {base} değil)."}},
+    "content.unverified-path": {"tr": {
+        "title": "Yol 200 döndü (doğrulanmadı): /{path}",
+        "detail": "HTTP 200 ama hassas-içerik imzası eşleşmedi (olası soft-404)."}},
+    "hostinject.reflected-in-location": {"tr": {
+        "title": "Sahte host Location başlığına yansıyor (sinyal, manuel doğrula)",
+        "detail": "Sahte host Location başlığına yansıyor. İşlem öncesi manuel doğrula."}},
+    "hostinject.reflected-in-resource-url": {"tr": {
+        "title": "Sahte host kaynak/canonical URL'e yansıyor (sinyal, manuel doğrula)",
+        "detail": "Sahte host bir kaynak/canonical URL'e yansıyor. Manuel doğrula."}},
+    "hostinject.reflected-in-body": {"tr": {
+        "title": "Sahte host yanıt gövdesine yansıyor (sinyal, manuel doğrula)",
+        "detail": "Sahte host yanıt gövdesine yansıyor. Manuel doğrula."}},
+    "hostinject.cacheable-response": {"tr": {
+        "title": "Yansıtan yanıt önbelleğe alınabilir (sinyal, manuel doğrula)",
+        "detail": "Yansıtan yanıt önbellek başlıkları taşıyor; paylaşımlı bir "
+                  "önbellek zehirlenen içeriği sunabilir. Manuel doğrula."}},
+    "hostinject.no-reflection": {"tr": {
+        "title": "Host-header yansıması görülmedi",
+        "detail": "Hedef, sahte bir host başlığını yansıtmadı."}},
+    "hostinject.unreachable": {"tr": {
+        "title": "Host-header kontrolü hedefi getiremedi",
+        "detail": "Baseline isteği başarısız oldu."}},
+    "passive.jwt-alg-none": {"tr": {"title": "JWT: alg=none",
+        "detail": "JWT alg=none kullanıyor (imza doğrulanmıyor)."}},
+    "passive.jwt-no-exp": {"tr": {"title": "JWT: exp yok",
+        "detail": "JWT'de exp yok (süresi dolmuyor)."}},
+    "passive.jwt-long-lived": {"tr": {"title": "JWT: uzun ömürlü",
+        "detail": "JWT ömrü 30 günü aşıyor."}},
+    "passive.jwt-sensitive-claims": {"tr": {"title": "JWT: hassas claim'ler",
+        "detail": "JWT payload'ı kimlik/rol claim'leri taşıyor (herkesçe okunur)."}},
+    "passive.jwt-in-url": {"tr": {"title": "JWT URL'de",
+        "detail": "URL'de bir JWT görünüyor (log/referrer sızıntısı)."}},
+    "passive.sri-missing": {"tr": {"title": "SRI olmayan üçüncü taraf kaynak: {src}",
+        "detail": "Çapraz-kaynak script/stil integrity olmadan (tedarik zinciri riski)."}},
+    "passive.cross-domain-script": {"tr": {"title": "Üçüncü taraf script host: {host}",
+        "detail": "Script üçüncü taraf bir host'tan yükleniyor."}},
+    "passive.private-ip-disclosure": {"tr": {"title": "İfşa: özel IP",
+        "detail": "Yanıtta özel/iç IP adresi ifşa ediliyor."}},
+    "passive.internal-hostname-disclosure": {"tr": {"title": "İfşa: iç hostname",
+        "detail": "İç hostname (.local/.internal/.corp/.lan) ifşa ediliyor."}},
+    "passive.absolute-path-disclosure": {"tr": {"title": "İfşa: sunucu dosya yolu",
+        "detail": "Sunucu dosya sistemi yolu ifşa ediliyor."}},
+    "passive.stack-trace": {"tr": {"title": "İfşa: stack trace",
+        "detail": "Bir framework stack trace / hata ayıklama hatası ifşa ediliyor."}},
+    "passive.mixed-content-active": {"tr": {"title": "Aktif karışık içerik",
+        "detail": "https sayfada http:// script yükleniyor (MITM/enjeksiyon)."}},
+    "passive.mixed-content-passive": {"tr": {"title": "Pasif karışık içerik",
+        "detail": "https sayfada http:// stil dosyası yükleniyor."}},
+    "passive.session-id-in-url": {"tr": {"title": "URL'de oturum kimliği: {param}",
+        "detail": "Oturum/token kimliği URL'de taşınıyor (log/referrer/geçmiş sızıntısı)."}},
+    "passive.html-comment-sensitive": {"tr": {"title": "İfşa: hassas HTML yorumu",
+        "detail": "HTML yorumu hassas anahtar kelimeler içeriyor (todo/fixme/password/debug)."}},
+    "passive.robots-missing": {"tr": {"title": "robots.txt yok",
+        "detail": "Sunucu robots.txt sunmuyor."}},
+    "passive.robots-reveals-paths": {"tr": {"title": "robots.txt hassas yolları açığa çıkarıyor",
+        "detail": "robots.txt Disallow kayıtları hassas yolları işaret ediyor (getirilmedi)."}},
+    "passive.security-txt-missing": {"tr": {"title": "security.txt yok",
+        "detail": "/.well-known/security.txt yok (RFC 9116)."}},
+    "passive.security-txt-no-contact": {"tr": {"title": "security.txt Contact alanı yok",
+        "detail": "security.txt mevcut ama Contact alanı yok."}},
+    "passive.security-txt-expired": {"tr": {"title": "security.txt süresi dolmuş",
+        "detail": "security.txt Expires alanı geçmiş bir tarihte."}},
+    "passive.clean": {"tr": {"title": "pasif: kayda değer bir şey yok",
+        "detail": "Getirilen sayfalarda pasif bir sorun bulunamadı."}},
+    "graphql.introspection-enabled": {"tr": {
+        "title": "GraphQL introspection açık: {url}",
+        "detail": "Introspection tüm şemayı döndürüyor; production'da kapat."}},
+    "graphql.endpoint-found": {"tr": {
+        "title": "GraphQL endpoint bulundu: {url}",
+        "detail": "Bir GraphQL endpoint'i yanıt veriyor (introspection kapalı görünüyor)."}},
+    "graphql.debug-errors": {"tr": {
+        "title": "GraphQL ayrıntılı hatalar: {url}",
+        "detail": "Hata yanıtı yığın izi / exception detayı içeriyor (debug modu).",
+        "recommendation": "Production'da ayrıntılı hata çıktısını kapat."}},
+    "graphql.ide-exposed": {"tr": {
+        "title": "GraphQL IDE açık: {url}",
+        "detail": "GraphiQL/Playground IDE sunuluyor; şema keşfini kolaylaştırır.",
+        "recommendation": "GraphQL IDE'yi production'da açığa çıkarma."}},
+    "graphql.get-query-allowed": {"tr": {
+        "title": "GraphQL sorguları GET ile kabul ediliyor: {url}",
+        "detail": "GET sorguları CSRF ile tetiklenebilir ve önbelleğe alınabilir.",
+        "recommendation": "GraphQL'i yalnızca POST üzerinden kabul et."}},
+    "graphql.none-found": {"tr": {
+        "title": "GraphQL endpoint bulunamadı",
+        "detail": "Yaygın yollarda yanıt veren bir GraphQL endpoint'i yok."}},
+    "redirect.open-redirect": {"tr": {
+        "title": "Açık yönlendirme: {url}",
+        "detail": "Yönlendirme parametresi kullanıcıyı saldırganın seçtiği host'a "
+                  "gönderiyor.",
+        "recommendation": "Yönlendirme hedeflerini bir allow-list ile doğrula."}},
+    "redirect.reflected-not-redirected": {"tr": {
+        "title": "Yönlendirme parametresi yansıtıldı (yönlendirme yok): {url}",
+        "detail": "Canary değeri sayfada yansıtılıyor ama yönlendirme olmadı; "
+                  "manuel kontrol önerilir."}},
+    "redirect.clean": {"tr": {
+        "title": "Açık yönlendirme bulunamadı",
+        "detail": "{tested} yönlendirme-tipi parametre denendi; hiçbiri site dışına "
+                  "yönlendirmedi."}},
+    "redirect.no-candidates": {"tr": {
+        "title": "Yönlendirme-tipi parametre bulunamadı",
+        "detail": "Hiçbir crawl URL'inde yönlendirme-tipi parametre yok (bulmak için "
+                  "crawl modülüyle çalıştır)."}},
+    "jsrecon.secret": {"tr": {
+        "title": "JavaScript'te olası {family}",
+        "detail": "İstemci tarafı JS içinde {family} biçiminde bir sır gömülü."}},
+    "jsrecon.vulnerable-library": {"tr": {
+        "title": "Güncel olmayan JS kütüphanesi: {lib} {version}",
+        "detail": "{lib} {version} < {fixed}; bilinen açıklar içerir."}},
+    "jsrecon.sourcemap-exposed": {"tr": {
+        "title": "JavaScript source map ifşa",
+        "detail": ".js.map erişilebilir; küçültülmemiş özgün kaynağı açığa çıkarır."}},
+    "jsrecon.firebase-config": {"tr": {
+        "title": "JavaScript'te Firebase web yapılandırması",
+        "detail": "Firebase istemci yapılandırması mevcut. Bu genelde herkese "
+                  "açıktır; Firebase güvenlik kurallarının gizliliğe dayanmadığını "
+                  "doğrulayın."}},
+    "jsrecon.no-scripts": {"tr": {
+        "title": "Aynı kaynaklı JavaScript bulunamadı",
+        "detail": "İncelenecek bir şey yok (aynı host'ta <script src> ya da .js URL yok)."}},
+    "jsrecon.library-inventory": {"tr": {
+        "title": "JavaScript kütüphane envanteri",
+        "detail": "Tespit edilen kütüphaneler listelendi."}},
+    "csrf.form-without-token": {"tr": {
+        "title": "CSRF token'ı olmayan durum değiştiren form",
+        "detail": "POST/PUT/PATCH/DELETE formunda anti-CSRF token'ı ve SameSite "
+                  "oturum çerezi yok; cross-site sahte istekle tetiklenebilir."}},
+    "csrf.form-without-token-samesite-only": {"tr": {
+        "title": "CSRF token'ı yok (yalnızca SameSite koruması)",
+        "detail": "Anti-CSRF token'ı yok ama SameSite oturum çerezi kısmi koruma "
+                  "sağlıyor. Derinlemesine savunma için token ekle."}},
+    "csrf.login-form-without-token": {"tr": {
+        "title": "CSRF token'ı olmayan giriş formu",
+        "detail": "Giriş formunda anti-CSRF token'ı yok (login-CSRF riski)."}},
+    "csrf.no-forms-found": {"tr": {
+        "title": "HTML form bulunamadı",
+        "detail": "Değerlendirilecek HTML form yok (JSON API / SPA fetch ile "
+                  "gönderir; bu pasif kontrol bunu kapsamaz)."}},
+    "crawl.surface": {"tr": {
+        "title": "Saldırı yüzeyi: {host} üzerinde {urls} endpoint",
+        "detail": "Crawl {urls} host-içi URL buldu, {params} tanesi sorgu "
+                  "parametreli (fuzz edilebilir). Parametrelileri fuzz etmek için "
+                  "--dast ile çalıştır."}},
+    "cms.detected": {"tr": {
+        "title": "CMS tespit edildi: {cms}",
+        "detail": "{cms} tespit edildi (sürüm {version}). CMS ve eklentilerini "
+                  "güncel tut; sürümü gizle."}},
+    "idor.possible": {"tr": {
+        "title": "Olası IDOR: {location}",
+        "detail": "Komşu bir nesne id'si 200 ile farklı bir nesne döndürdü; nesne "
+                  "düzeyinde yetkilendirme eksik olabilir. Bu nesnenin bu kullanıcı "
+                  "tarafından erişilebilir olması gerekip gerekmediğini manuel "
+                  "doğrula."}},
+    # discover
+    "discover.host": {"tr": {
+        "title": "Canlı host: {host}",
+        "detail": "{url} HTTP {status} yanıtı veriyor."}},
+    "discover.takeover": {"tr": {
+        "title": "Olası subdomain takeover: {host}",
+        "detail": "{host}, çözülmeyen {target} adresine CNAME. Bu sağlayıcıda "
+                  "adı genelde herkes alabilir; saldırgan alt alan adında içerik "
+                  "yayınlayabilir.",
+        "recommendation": "DNS kaydını sil ya da işaret ettiği kaynağı geri al."}},
+    "discover.dangling-cname": {"tr": {
+        "title": "Sahipsiz CNAME: {host}",
+        "detail": "{host}, çözülmeyen {target} adresine CNAME. Bu ad başkası "
+                  "tarafından alınabilirse alt alan adını o kontrol eder.",
+        "recommendation": "DNS kaydını sil ya da işaret ettiği kaynağı geri al."}},
+    "discover.summary": {"tr": {
+        "title": "{domain} için keşif özeti",
+        "detail": "{sources} kaynağından {domain} altında {resolved} ad çözüldü; "
+                  "{live} canlı web host'u, {third} üçüncü taraf (yoklanmadı), "
+                  "{private} özel adres (atlandı)."}},
+    "web.dast-ran": {"tr": {
+        "title": "API şeması üzerinde DAST çalıştı",
+        "detail": "nuclei DAST şablonları {spec} şemasındaki {ops} GET işlemine "
+                  "karşı çalıştırıldı."}},
+    "authz.page-not-checked": {"tr": {
+        "title": "Sayfa kontrol edilemedi: {page}",
+        "detail": "Sayfa getirilemediği için erişim kontrolü doğrulanmadı: {reason}.",
+        "recommendation": "Yolu ve hedefin erişilebilir olduğunu kontrol edip "
+                          "yeniden çalıştır."}},
     # headers
     "headers.missing-hsts": {"tr": {
         "title": "Güvenlik başlığı eksik: Strict-Transport-Security",
@@ -83,19 +351,19 @@ CATALOG: dict[str, dict[str, dict[str, str]]] = {
                   "Güvenlik duvarı tüm portlara yanıt veriyor olabilir."}},
     "ports.open-ports": {"tr": {
         "title": "Açık portlar", "detail": "Tespit edilen açık portlar."}},
-    "ports.image-unavailable": {"tr": {"title": "nmap imajı indirilemedi"}},
     # tls
     "tls.config-ok": {"tr": {
         "title": "TLS yapılandırması sağlam",
         "detail": "testssl kayda değer (LOW+) bir sorun bildirmedi."}},
-    "tls.image-unavailable": {"tr": {"title": "testssl imajı indirilemedi"}},
     "tls.no-output": {"tr": {
         "title": "TLS: JSON çıktısı alınamadı",
         "detail": "testssl JSON dosyası oluşmadı."}},
     # web
     "web.nuclei.no-match": {"tr": {
         "title": "nuclei: eşleşme yok", "detail": "{severities} seviyesinde bulgu yok."}},
-    "web.image-unavailable": {"tr": {"title": "nuclei imajı indirilemedi"}},
+    "web.profile-ran": {"tr": {
+        "title": "nuclei profili '{profile}' çalıştı",
+        "detail": "Ek nuclei etiket seti tarandı (profil: {profile})."}},
 }
 
 # Report chrome (headings, labels) per language.
@@ -125,6 +393,7 @@ UI: dict[str, dict[str, str]] = {
         "err_unknown_formats": "unknown format(s)",
         "err_config": "config",
         "running": "running...", "skipped": "skipped.",
+        "resumed": "reused from the interrupted run.",
         "scan_done": "Done. Report:", "no_findings_short": "no findings",
         "baseline_line": "baseline: {new} new, {resolved} resolved",
         "available_modules": "Available modules:",
@@ -141,6 +410,18 @@ UI: dict[str, dict[str, str]] = {
         "github_result": "GitHub: {created} issue(s) opened, {closed} closed.",
         "github_error": "GitHub issue error:",
         "github_skipped_no_token": "GITHUB_TOKEN missing; issue creation skipped.",
+        "suppressed": "Suppressed (accepted risks)", "reason": "Reason",
+        "suppressed_line": "{n} finding(s) suppressed",
+        "suppress_expired": "suppression for {rule} expired on {date}; "
+            "it no longer applies",
+        "err_suppress": "suppression file",
+        "notify_sent": "notification sent to {n} webhook(s)",
+        "notify_error": "Notification error:",
+        "throttled": "target throttled {n} request(s) (429/503); the scan slowed "
+            "down automatically, results may be incomplete",
+        "discovered_scanning": "scanning {n} discovered host(s)",
+        "discovered_hint": "{n} live subdomain(s) found; add --scan-discovered "
+            "to scan them (only if you are authorized for each)",
     },
     "tr": {
         "report_title": "Güvenlik Tarama Raporu",
@@ -167,6 +448,7 @@ UI: dict[str, dict[str, str]] = {
         "err_unknown_formats": "bilinmeyen biçim(ler)",
         "err_config": "config",
         "running": "çalışıyor...", "skipped": "atlandı.",
+        "resumed": "yarıda kalan taramadan alındı.",
         "scan_done": "Bitti. Rapor:", "no_findings_short": "bulgu yok",
         "baseline_line": "baseline: {new} yeni, {resolved} çözülen",
         "available_modules": "Mevcut modüller:",
@@ -183,6 +465,18 @@ UI: dict[str, dict[str, str]] = {
         "github_result": "GitHub: {created} issue açıldı, {closed} kapatıldı.",
         "github_error": "GitHub issue hatası:",
         "github_skipped_no_token": "GITHUB_TOKEN yok; issue oluşturma atlandı.",
+        "suppressed": "Bastırılanlar (kabul edilen riskler)", "reason": "Gerekçe",
+        "suppressed_line": "{n} bulgu bastırıldı",
+        "suppress_expired": "{rule} için bastırmanın süresi {date} tarihinde "
+            "doldu; artık uygulanmıyor",
+        "err_suppress": "bastırma dosyası",
+        "notify_sent": "{n} webhook'a bildirim gönderildi",
+        "notify_error": "Bildirim hatası:",
+        "throttled": "hedef {n} isteği kısıtladı (429/503); tarama otomatik "
+            "yavaşladı, sonuçlar eksik olabilir",
+        "discovered_scanning": "keşfedilen {n} host taranıyor",
+        "discovered_hint": "{n} canlı alt alan adı bulundu; taramak için "
+            "--scan-discovered ekle (yalnızca her biri için yetkin varsa)",
     },
 }
 
@@ -200,6 +494,18 @@ MODULE_DESC_TR: dict[str, str] = {
     "authz": "Giriş sonrası (salt-okunur) erişim kontrolü — kimlik bilgisi gerekir",
     "openapi": "OpenAPI/Swagger şema-güdümlü endpoint kapsamı (salt-okunur)",
     "mail": "SMTP/mail: STARTTLS, MTA-STS, TLS-RPT (kapsam korumalı, salt-okunur)",
+    "discover": "Alt alan adı envanteri (CT kayıtları + varsa subfinder), canlı "
+                "host yoklama, sahipsiz CNAME / takeover kontrolü",
+    "crawl": "Endpoint/parametre haritası için siteyi tarar (katana)",
+    "csrf": "HTML formlarında CSRF koruması kontrolü (pasif, salt-okunur)",
+    "jsrecon": "İstemci JS: sızan sırlar, eski kütüphaneler, açık source map'ler",
+    "graphql": "GraphQL ifşası: introspection, IDE, hata ayıklama (salt-okunur)",
+    "redirect": "Yönlendirme parametrelerinde açık yönlendirme tespiti (salt-okunur)",
+    "passive": "Pasif ekstralar: JWT/SRI/URL'de session/ifşa/robots/security.txt",
+    "hostinject": "Host-header injection / cache poisoning sinyalleri "
+                  "(salt-okunur, manuel doğrula)",
+    "cms": "CMS tespiti + WordPress ifşa kontrolleri (salt-okunur)",
+    "idor": "IDOR / nesne düzeyi yetki kontrolü taraması (salt-okunur, opt-in)",
 }
 
 

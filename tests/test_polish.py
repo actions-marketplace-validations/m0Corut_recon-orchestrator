@@ -27,6 +27,15 @@ def test_doctor_command_runs(capsys):
     assert "Docker" in out and "nmap" in out
 
 
+def test_doctor_tool_status_column_is_aligned(capsys):
+    from recon.runner import TOOLS
+    _run_doctor_command("en")
+    lines = [ln for ln in capsys.readouterr().out.splitlines()
+             if any(ln.strip().startswith(f"{tool} (") for tool in TOOLS)]
+    assert len(lines) == len(TOOLS)
+    assert len({ln.index(" : ") for ln in lines}) == 1
+
+
 def test_report_schema_is_valid_json():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     with open(os.path.join(here, "docs", "report.schema.json"), encoding="utf-8") as fh:

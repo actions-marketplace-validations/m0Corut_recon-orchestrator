@@ -85,8 +85,13 @@ def run(target: str, ctx: dict) -> list[Finding]:
         mx_records = sorted(
             ((r.preference, str(r.exchange).rstrip(".")) for r in
              resolver.resolve(domain, "MX")), key=lambda x: x[0])
+    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+        mx_records = []           # resolver works; the domain simply has no MX
     except Exception:
-        mx_records = []
+        return [Finding(NAME, "MX lookup unreliable", "info",
+                        f"The resolver did not answer for {domain} (timeout / no "
+                        "nameservers); mail security could not be checked.",
+                        rule_id=f"{NAME}.lookup-unreliable")]
 
     findings: list[Finding] = []
     if not mx_records:

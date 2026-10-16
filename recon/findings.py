@@ -4,10 +4,11 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import asdict, dataclass, field
-from typing import Any
+from typing import Any, Literal
 
-SEVERITIES = ["info", "low", "medium", "high", "critical"]
-SEVERITY_RANK = {s: i for i, s in enumerate(SEVERITIES)}
+Severity = Literal["info", "low", "medium", "high", "critical"]
+SEVERITIES: list[Severity] = ["info", "low", "medium", "high", "critical"]
+SEVERITY_RANK: dict[str, int] = {s: i for i, s in enumerate(SEVERITIES)}
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
@@ -34,7 +35,7 @@ class Finding:
 
     module: str
     title: str
-    severity: str
+    severity: Severity | str
     detail: str
     evidence: str = ""
     recommendation: str = ""
@@ -79,6 +80,13 @@ class ScanResult:
     target: str
     findings: list[Finding] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    # (finding, reason) pairs hidden by a suppression file; excluded from counts
+    # and CI gates but still listed in reports
+    suppressed: list[tuple[Finding, str]] = field(default_factory=list)
+
+    @property
+    def suppressed_fingerprints(self) -> set[str]:
+        return {f.fingerprint for f, _ in self.suppressed}
 
     def add(self, *findings: Finding) -> None:
         self.findings.extend(findings)
@@ -91,7 +99,7 @@ class ScanResult:
         return max((f.rank for f in self.findings), default=-1)
 
     def counts(self) -> dict[str, int]:
-        c = {s: 0 for s in SEVERITIES}
+        c: dict[str, int] = {s: 0 for s in SEVERITIES}
         for f in self.findings:
-            c[f.severity] += 1
+            c[f.severity] = c.get(f.severity, 0) + 1
         return c

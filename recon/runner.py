@@ -16,13 +16,43 @@ from .dockerutil import ensure_image
 from .dockerutil import run as docker_run
 
 # logical tool -> (docker image, native binary name)
+# Images are pinned so scans are reproducible and a re-tagged upstream image is
+# not pulled silently; bump these deliberately (keep the Dockerfile in sync).
 TOOLS = {
-    "nmap": ("instrumentisto/nmap", "nmap"),
-    "nuclei": ("projectdiscovery/nuclei:latest", "nuclei"),
-    "testssl": ("drwetter/testssl.sh", "testssl.sh"),
+    "nmap": ("instrumentisto/nmap:7.98", "nmap"),
+    "nuclei": ("projectdiscovery/nuclei:v3.11.1", "nuclei"),
+    "testssl": ("drwetter/testssl.sh:3.2", "testssl.sh"),
+    "subfinder": ("projectdiscovery/subfinder:v2.17.0", "subfinder"),
+    "katana": ("projectdiscovery/katana:v1.8.0", "katana"),
 }
+# Tools a scan cannot do without (vs. optional enrichers like subfinder); used
+# by get_runner('auto') to decide whether native binaries are complete.
+CORE_TOOLS = ("nmap", "nuclei", "testssl")
 
 OUT_PLACEHOLDER = "{out}"
+IN_PLACEHOLDER = "{in}"
+
+# nuclei ships no templates in its image and downloads ~14k on every run. A
+# persistent named volume caches them across runs, so only the first scan pays
+# the download cost (and later ones update incrementally). Docker creates the
+# volume on first use.
+NUCLEI_TEMPLATE_VOLUME = "recon-nuclei-templates"
+_TOOL_CACHE_VOLUMES = {
+    "nuclei": {NUCLEI_TEMPLATE_VOLUME: "/root/nuclei-templates"},
+}
+
+
+def _cache_volumes(tool: str) -> dict[str, str]:
+    return dict(_TOOL_CACHE_VOLUMES.get(tool, {}))
+
+
+def _write_input(content: str, filename: str) -> tuple[str, str]:
+    """Write `content` to a fresh temp dir; return (dir, file path)."""
+    in_dir = tempfile.mkdtemp(prefix="recon-in-")
+    path = os.path.join(in_dir, filename)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(content)
+    return in_dir, path
 
 
 class DockerRunner:
@@ -36,7 +66,8 @@ class DockerRunner:
         image = TOOLS[tool][0]
         if not ensure_image(image):
             return ""
-        return docker_run(image, args, timeout=timeout).stdout
+        return docker_run(image, args, timeout=timeout,
+                          volumes=_cache_volumes(tool)).stdout
 
     def run_with_outfile(self, tool: str, args: list[str], timeout: int,
                          filename: str = "out.json") -> str:
@@ -47,7 +78,8 @@ class DockerRunner:
         try:
             cont_path = f"/out/{filename}"
             real_args = [a.replace(OUT_PLACEHOLDER, cont_path) for a in args]
-            docker_run(image, real_args, timeout=timeout, volumes={out_dir: "/out"})
+            docker_run(image, real_args, timeout=timeout,
+                       volumes={out_dir: "/out", **_cache_volumes(tool)})
             host_file = os.path.join(out_dir, filename)
             if os.path.exists(host_file):
                 with open(host_file, encoding="utf-8", errors="replace") as fh:
@@ -55,6 +87,22 @@ class DockerRunner:
             return ""
         finally:
             _cleanup(out_dir, filename)
+
+
+    def run_capture_with_input(self, tool: str, args: list[str], timeout: int,
+                               content: str, filename: str = "input.json") -> str:
+        """Like run_capture, with `content` mounted read-only at {in}."""
+        image = TOOLS[tool][0]
+        if not ensure_image(image):
+            return ""
+        in_dir, _ = _write_input(content, filename)
+        try:
+            cont_path = f"/in/{filename}"
+            real_args = [a.replace(IN_PLACEHOLDER, cont_path) for a in args]
+            return docker_run(image, real_args, timeout=timeout,
+                              volumes={in_dir: "/in:ro", **_cache_volumes(tool)}).stdout
+        finally:
+            _cleanup(in_dir, filename)
 
 
 class NativeRunner:
@@ -92,6 +140,16 @@ class NativeRunner:
             _cleanup(out_dir, filename)
 
 
+    def run_capture_with_input(self, tool: str, args: list[str], timeout: int,
+                               content: str, filename: str = "input.json") -> str:
+        in_dir, path = _write_input(content, filename)
+        try:
+            real_args = [a.replace(IN_PLACEHOLDER, path) for a in args]
+            return self.run_capture(tool, real_args, timeout)
+        finally:
+            _cleanup(in_dir, filename)
+
+
 def _cleanup(out_dir: str, filename: str) -> None:
     try:
         os.remove(os.path.join(out_dir, filename))
@@ -111,6 +169,6 @@ def get_runner(mode: str = "auto"):
         return NativeRunner()
     native = NativeRunner()
     # prefer native only if ALL tools are present; otherwise Docker is simpler
-    if all(native.can_run(t) for t in TOOLS):
+    if all(native.can_run(t) for t in CORE_TOOLS):
         return native
     return DockerRunner()

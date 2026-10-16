@@ -97,37 +97,60 @@ which modules you want:
 | The core checks (headers, CORS, content discovery) | Just Python + pip |
 | DNS/email security (`dns`) and mail (`mail`) checks | the `[dns]` extra |
 | Port scanning, TLS audit, nuclei templates (`ports`/`tls`/`web`) | Docker **or** the tools installed natively |
+| Subdomain inventory (`--discover`) | nothing extra; the `[dns]` extra adds CNAME/takeover checks, and subfinder (Docker or native) adds more sources |
+| Endpoint crawl (`crawl` module) | katana (Docker or native); `--crawl-headless` also needs Chromium |
+| Injection fuzzing (`--dast`) | nuclei (Docker or native); an OpenAPI/Swagger spec **or** a crawl of the site |
 
-**Option A — clone and install (recommended for first try):**
+**Option A — install from PyPI (recommended):**
+
+```bash
+pip install "recon-orchestrator[dns]"            # omit [dns] if you don't need dns/mail
+pip install "recon-orchestrator[dns]==1.2.1"     # or pin an exact version (e.g. in CI)
+pip install -U "recon-orchestrator[dns]"         # upgrade an existing install
+```
+
+This installs a `recon` command on your PATH; `recon --version` shows which
+version you have.
+
+**Option B — clone and install (to read or change the code):**
 
 ```bash
 git clone https://github.com/m0Corut/recon-orchestrator
 cd recon-orchestrator
-pip install ".[dns]"          # omit [dns] if you don't need the dns/mail modules
-```
-
-This installs a `recon` command on your PATH.
-
-**Option B — install from PyPI (no cloning needed):**
-
-```bash
-pip install "recon-orchestrator[dns]"
+pip install ".[dns]"
 ```
 
 **Option C — Docker image (zero local setup, tools included):**
 
 If you don't want to install Python packages or Docker-pull individual tool
-images, use the all-in-one image. It bundles nmap, nuclei, and testssl.sh as
-native binaries inside the container, so it needs *only* Docker itself:
+images, use the all-in-one image. It bundles nmap, nuclei, testssl.sh and
+subfinder as native binaries inside the container, so it needs *only* Docker
+itself:
 
 ```bash
-docker run --rm -v "$PWD:/work" ghcr.io/m0corut/recon-orchestrator \
+docker run --rm -v "$PWD:/work" ghcr.io/m0corut/recon-orchestrator:1.2.1 \
   https://example.com --authorized
 ```
+
+Use a version tag such as `:1.2.1` so a scan does not change underneath you;
+`:latest` always points at the newest release.
+
+**Tool versions.** When the tools run through Docker, recon uses pinned
+images (nmap 7.98, nuclei v3.11.1, testssl.sh 3.2, subfinder v2.17.0), so the
+same recon version always scans with the same tools. Tools you installed
+natively are used as they are, whatever their version. With the default
+`--runner auto`, native binaries are used when nmap, nuclei and testssl.sh are
+all installed; otherwise Docker is used. subfinder is optional either way.
 
 **Checking your setup:** after installing, run `recon doctor` — it tells you
 exactly which tools and optional packages it can see, so you know in advance
 which modules will actually run.
+
+**Upgrading from 1.0.** Nothing breaks: every new feature in 1.1 is off until
+you ask for it (`--discover`, `--dast`, `--notify-env`, `--resume`), with one
+exception: if a `.reconignore.yml` file exists in the directory you scan from,
+it is now read automatically. Scans also keep a small checkpoint in
+`recon_runs/.partial/` while they run, and remove it when they finish.
 
 ### Your first scan, step by step
 
@@ -182,6 +205,44 @@ Or drop in the reusable GitHub Action:
 `.github/workflows/scan.yml` in this repo is a working example (weekly
 schedule + manual trigger) you can copy into your own project.
 
+**Accepted risks.** Some findings are known and deliberately accepted. List
+them in `.reconignore.yml` (picked up automatically, or pass
+`--suppress-file`). Each entry needs a reason; an optional `expires` date
+makes the finding come back, and fail CI again, once the review date passes.
+Suppressed findings are left out of counts and `--fail-on*` gates but still
+listed in every report under "Suppressed".
+
+```yaml
+- rule_id: headers.missing-csp        # glob allowed: "headers.*"
+  reason: "CSP rollout tracked in JIRA-123"
+  expires: 2027-01-31
+- rule_id: ports.notable
+  reason: "Redis is firewalled to the VPN"
+  fingerprint: 3f2a9c...              # optional: just this one instance
+```
+
+**Whole attack surface.** `--discover` adds the `discover` module: it lists
+subdomains from Certificate Transparency and subfinder (when available), probes
+which in-house ones serve HTTP, and flags dangling CNAMEs. Each live host is a
+finding, so the next run reports **new subdomains** through the normal baseline
+diff. Discovered hosts are only listed by default; add `--scan-discovered` to
+run the other modules against each of them too, and only if you are authorized
+for all of them. Hosts that CNAME to a third-party service (Shopify, Heroku, …)
+are never probed or scanned, only checked in DNS.
+
+```bash
+recon example.com --authorized --discover                    # inventory
+recon example.com --authorized --discover --scan-discovered  # inventory + scan each
+```
+
+**Notifications.** A scheduled scan is only useful if someone sees it.
+`--notify-env RECON_WEBHOOK` reads one or more webhook URLs (comma-separated)
+from an environment variable and posts a short message only when there are
+NEW findings at `--notify-min-severity` (default `medium`) or above. Slack,
+Discord and Telegram (`https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<ID>`)
+URLs are detected automatically; anything else receives a generic JSON
+payload. Messages contain titles and rule ids, never evidence.
+
 ### What each module actually checks
 
 | Module | Needs | What it looks for |
@@ -196,6 +257,16 @@ schedule + manual trigger) you can copy into your own project.
 | `authz` | a session cookie/token you provide | Whether pages that should require login are actually reachable without one (read-only — GET/HEAD only, never submits forms) |
 | `openapi` | an OpenAPI/Swagger spec | Whether endpoints the spec marks as requiring authentication are reachable without it |
 | `mail` | `[dns]` extra | Whether your mail server offers STARTTLS, and whether MTA-STS/TLS-RPT are configured |
+| `discover` | nothing (`[dns]` extra recommended; subfinder optional) | Subdomain inventory from Certificate Transparency (crt.sh, Cert Spotter) and subfinder, live web hosts, and dangling CNAMEs that may allow a subdomain takeover. Opt-in via `--discover` |
+| `crawl` | katana | Maps the attack surface: endpoints and query parameters, parsing linked JS; `--crawl-headless` drives a browser for single-page apps. Opt-in |
+| `cms` | nothing | Detects the CMS (WordPress/Joomla/Drupal) and version, and for WordPress checks REST user enumeration, an exposed debug log, xmlrpc.php and readme. Opt-in (`-m cms`) |
+| `idor` | nothing (`--auth-header` recommended) | Heuristic IDOR / broken object-level authorization probe: fetches a neighbouring object id and flags when a distinct object comes back (read-only, GET only). Opt-in (`-m idor`) |
+| `csrf` | nothing | State-changing HTML forms without an anti-CSRF token or SameSite session cookie; login forms reported separately. Passive. Opt-in (`-m csrf`) |
+| `jsrecon` | nothing | Same-origin JS: hard-coded secrets (masked), outdated/vulnerable libraries (retire.js-style), exposed `.js.map` source maps. Opt-in (`-m jsrecon`) |
+| `graphql` | nothing | GraphQL introspection enabled, exposed IDE, debug errors, GET queries — one fixed probe. Opt-in (`-m graphql`) |
+| `redirect` | nothing (crawl recommended) | Open redirect on redirect-style params, using a reserved canary; never follows. Opt-in (`-m redirect`) |
+| `passive` | nothing | JWT hygiene (decode-only), missing SRI, session id in URL, internal IP/host/path/stack-trace disclosure, mixed content, robots/security.txt. Opt-in (`-m passive`) |
+| `hostinject` | nothing | Host-header injection / cache-poisoning **signals** (verify manually); cache-buster on every probe. Opt-in (`-m hostinject`) |
 
 Run `recon modules` any time to see this list with each module's current
 description.
@@ -212,9 +283,49 @@ description.
 --runner native|docker|auto   # how external tools are executed
 --analyst anthropic           # optional AI executive summary (opt-in, needs an API key)
 --github-issues org/repo      # optional: file a GitHub issue per new finding
+--discover [--scan-discovered]  # subdomain inventory (+ scan each live host)
+-m cms,idor                    # CMS/WordPress checks and the IDOR probe (opt-in modules)
+--idor-url https://s/x/1001    # an id-bearing URL for the idor module to test
+-m csrf,jsrecon,graphql,redirect,passive,hostinject  # more opt-in detection modules
+--nuclei-profile panels        # nuclei: also run panel/exposure/tech templates (web module)
+--suppress-file ignore.yml    # accepted risks (default: .reconignore.yml)
+--notify-env RECON_WEBHOOK    # Slack/Discord/Telegram/webhook on NEW findings
+--resume                      # continue an interrupted scan; finished modules are reused
+--dast                        # nuclei fuzzing on the API spec's GET operations only
 ```
 
 Full detail on every flag: `recon --help`.
+
+The rate limit adapts on its own: if the target answers `429`/`503`, every
+module slows down (and honours `Retry-After`), then speeds back up to `--rate`.
+The run says so, because findings may be incomplete.
+
+`--dast` sends real attack payloads, so it is opt-in and deliberately narrow.
+If an OpenAPI/Swagger spec is found, nuclei receives a copy that keeps only GET
+operations and whose server is rewritten to your target. With no spec, the site
+is crawled (katana) and only the discovered GET URLs that carry query
+parameters, on the target host, are fuzzed — nothing that changes data. The
+`crawl` module (`-m crawl`) runs the same crawl on its own to map the attack
+surface. Crawling parses linked JavaScript for endpoints. A JavaScript-heavy single-page
+app builds its API calls at runtime, so add `--crawl-headless` to drive a real
+headless browser and discover those too (needs Chromium; the all-in-one image
+ships it). Headless is slower, so it is opt-in.
+
+**History across runs.** `recon trend` (or `recon trend <output_dir>`) writes
+`trend.html`: per host, a stacked bar of findings by severity for each run plus
+the same numbers in a table with new/resolved counts. It is a single file with
+no external resources, like the report.
+
+**Your own checks.** Another package can add modules without forking this one:
+
+```toml
+# pyproject.toml of your package
+[project.entry-points."recon_orchestrator.modules"]
+mycheck = "my_package.mycheck"   # a module with NAME, NEEDS_DOCKER, run(target, ctx)
+```
+
+Plugins appear in `recon modules`, run only when named (`-m headers,mycheck`),
+and can never replace a built-in module.
 
 ### Architecture (for contributors)
 
@@ -363,37 +474,59 @@ olarak opsiyoneldir:
 | Temel kontroller (headers, CORS, içerik keşfi) | Sadece Python + pip |
 | DNS/e-posta güvenliği (`dns`) ve mail (`mail`) kontrolleri | `[dns]` extra |
 | Port taraması, TLS denetimi, nuclei şablonları (`ports`/`tls`/`web`) | Docker **ya da** araçların native kurulu olması |
+| Alt alan adı envanteri (`--discover`) | ek bir şey gerekmez; `[dns]` extra CNAME/takeover kontrollerini, subfinder (Docker ya da native) ek kaynakları ekler |
+| API fuzzing (`--dast`) | nuclei (Docker ya da native) ve bir OpenAPI/Swagger şeması |
 
-**Seçenek A — klonla ve kur (ilk deneme için önerilen):**
+**Seçenek A — PyPI'dan kur (önerilen):**
+
+```bash
+pip install "recon-orchestrator[dns]"            # dns/mail gerekmiyorsa [dns]'i çıkar
+pip install "recon-orchestrator[dns]==1.2.1"     # ya da tam sürümü sabitle (ör. CI'da)
+pip install -U "recon-orchestrator[dns]"         # mevcut kurulumu güncelle
+```
+
+Bu, PATH'ine bir `recon` komutu kurar; hangi sürümün kurulu olduğunu
+`recon --version` gösterir.
+
+**Seçenek B — klonla ve kur (kodu okumak ya da değiştirmek için):**
 
 ```bash
 git clone https://github.com/m0Corut/recon-orchestrator
 cd recon-orchestrator
-pip install ".[dns]"          # dns/mail modülleri gerekmiyorsa [dns]'i çıkar
-```
-
-Bu, PATH'ine bir `recon` komutu kurar.
-
-**Seçenek B — PyPI'dan kur (klonlamaya gerek yok):**
-
-```bash
-pip install "recon-orchestrator[dns]"
+pip install ".[dns]"
 ```
 
 **Seçenek C — Docker imajı (yerel kurulum sıfır, araçlar dahil):**
 
 Python paketleri kurmak veya tek tek araç imajlarını çekmek istemiyorsan,
-hepsi-bir-arada imajı kullan. nmap, nuclei ve testssl.sh'ı container içinde
-native binary olarak barındırır, yani *sadece* Docker'ın kendisi gerekir:
+hepsi-bir-arada imajı kullan. nmap, nuclei, testssl.sh ve subfinder'ı
+container içinde native binary olarak barındırır, yani *sadece* Docker'ın
+kendisi gerekir:
 
 ```bash
-docker run --rm -v "$PWD:/work" ghcr.io/m0corut/recon-orchestrator \
+docker run --rm -v "$PWD:/work" ghcr.io/m0corut/recon-orchestrator:1.2.1 \
   https://ornek.com --authorized
 ```
+
+Taramanın habersizce değişmemesi için `:1.2.1` gibi bir sürüm etiketi kullan;
+`:latest` her zaman en yeni sürümü gösterir.
+
+**Araç sürümleri.** Araçlar Docker üzerinden çalıştığında recon sabitlenmiş
+imajlar kullanır (nmap 7.98, nuclei v3.11.1, testssl.sh 3.2, subfinder
+v2.17.0); böylece aynı recon sürümü hep aynı araçlarla tarar. Native kurduğun
+araçlar ise sürümü ne olursa olsun olduğu gibi kullanılır. Varsayılan
+`--runner auto` ayarında nmap, nuclei ve testssl.sh'ın üçü de native kuruluysa
+onlar, değilse Docker kullanılır. subfinder her iki durumda da isteğe bağlıdır.
 
 **Kurulumunu kontrol etmek:** kurduktan sonra `recon doctor` çalıştır —
 tam olarak hangi araçları ve opsiyonel paketleri görebildiğini söyler, böylece
 hangi modüllerin gerçekten çalışacağını önceden bilirsin.
+
+**1.0'dan yükseltme.** Hiçbir şey bozulmaz: 1.1'deki yeni özelliklerin hepsi
+sen istemedikçe kapalıdır (`--discover`, `--dast`, `--notify-env`,
+`--resume`). Tek istisna: tarama yaptığın dizinde bir `.reconignore.yml`
+dosyası varsa artık otomatik okunur. Ayrıca taramalar çalışırken
+`recon_runs/.partial/` altında küçük bir checkpoint tutar ve bitince siler.
 
 ### Adım adım ilk tarama
 
@@ -447,6 +580,46 @@ Ya da yeniden kullanılabilir GitHub Action'ı ekle:
 Bu repodaki `.github/workflows/scan.yml`, kendi projene kopyalayabileceğin
 çalışan bir örnektir (haftalık zamanlama + elle tetikleme).
 
+**Kabul edilen riskler.** Bazı bulgular bilinir ve bilerek kabul edilir.
+Bunları `.reconignore.yml` dosyasına yaz (otomatik okunur, ya da
+`--suppress-file` ver). Her girdi bir gerekçe ister; isteğe bağlı `expires`
+tarihi geçince bulgu geri gelir ve CI'ı yeniden kırar. Bastırılan bulgular
+sayımlara ve `--fail-on*` kapılarına girmez ama her raporda "Bastırılanlar"
+başlığı altında listelenir.
+
+```yaml
+- rule_id: headers.missing-csp        # glob kullanılabilir: "headers.*"
+  reason: "CSP geçişi JIRA-123'te takip ediliyor"
+  expires: 2027-01-31
+- rule_id: ports.notable
+  reason: "Redis yalnızca VPN'e açık"
+  fingerprint: 3f2a9c...              # isteğe bağlı: yalnızca bu örnek
+```
+
+**Tüm saldırı yüzeyi.** `--discover`, `discover` modülünü ekler: sertifika
+şeffaflığı kayıtlarından ve (varsa) subfinder'dan alt alan adlarını listeler,
+sana ait olanlardan hangilerinin HTTP sunduğunu yoklar ve sahipsiz CNAME'leri
+işaretler. Her canlı host bir bulgudur, bu yüzden sonraki tarama normal
+baseline karşılaştırmasıyla **yeni alt alan adlarını** bildirir. Keşfedilen
+host'lar varsayılan olarak yalnızca listelenir; diğer modülleri her birinde de
+çalıştırmak için `--scan-discovered` ekle, ama yalnızca hepsi için yetkin
+varsa. Üçüncü taraf bir servise (Shopify, Heroku, …) CNAME veren host'lar asla
+yoklanmaz ve taranmaz, yalnızca DNS'te kontrol edilir.
+
+```bash
+recon ornek.com --authorized --discover                    # envanter
+recon ornek.com --authorized --discover --scan-discovered  # envanter + her birini tara
+```
+
+**Bildirimler.** Zamanlanmış tarama ancak biri sonucu görürse işe yarar.
+`--notify-env RECON_WEBHOOK` bir ortam değişkeninden bir veya daha fazla
+webhook adresi okur (virgülle ayrılmış) ve yalnızca `--notify-min-severity`
+(varsayılan `medium`) ve üstünde YENİ bulgu varsa kısa bir mesaj gönderir.
+Slack, Discord ve Telegram
+(`https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<ID>`) adresleri
+otomatik tanınır; diğerlerine genel bir JSON gönderilir. Mesajlarda başlık ve
+rule_id bulunur, kanıt asla bulunmaz.
+
 ### Her modül tam olarak ne kontrol ediyor
 
 | Modül | Gereken | Ne arıyor |
@@ -461,6 +634,16 @@ Bu repodaki `.github/workflows/scan.yml`, kendi projene kopyalayabileceğin
 | `authz` | senin verdiğin bir session cookie/token | Giriş gerektirmesi gereken sayfaların gerçekten girişsiz erişilip erişilemediği (salt-okunur — sadece GET/HEAD, form göndermez) |
 | `openapi` | bir OpenAPI/Swagger şeması | Şemanın kimlik doğrulama gerektirdiğini söylediği endpoint'lerin gerçekten kimliksiz erişilip erişilemediği |
 | `mail` | `[dns]` extra | Mail sunucunun STARTTLS sunup sunmadığı, MTA-STS/TLS-RPT'nin yapılandırılıp yapılandırılmadığı |
+| `discover` | hiçbir şey (`[dns]` extra önerilir; subfinder isteğe bağlı) | Sertifika şeffaflığı (crt.sh, Cert Spotter) ve subfinder ile alt alan adı envanteri, canlı web host'ları ve subdomain takeover'a açık sahipsiz CNAME'ler. `--discover` ile açılır |
+| `crawl` | katana | Saldırı yüzeyini haritalar: endpoint ve sorgu parametreleri, bağlı JS'i ayrıştırır; SPA'lar için `--crawl-headless` tarayıcı sürer. Opt-in |
+| `cms` | hiçbir şey | CMS'i (WordPress/Joomla/Drupal) ve sürümü tespit eder; WordPress için REST kullanıcı sayımı, açık debug log, xmlrpc.php ve readme kontrolü. Opt-in (`-m cms`) |
+| `idor` | hiçbir şey (`--auth-header` önerilir) | Sezgisel IDOR / nesne düzeyi yetki taraması: komşu nesne id'sini getirip farklı bir nesne dönerse işaretler (salt-okunur, yalnızca GET). Opt-in (`-m idor`) |
+| `csrf` | hiçbir şey | Anti-CSRF token'ı veya SameSite oturum çerezi olmayan durum değiştiren formlar; giriş formları ayrı raporlanır. Pasif. Opt-in (`-m csrf`) |
+| `jsrecon` | hiçbir şey | Same-origin JS: gömülü sırlar (maskeli), eski/açıklı kütüphaneler (retire.js tarzı), açık `.js.map` source map'ler. Opt-in (`-m jsrecon`) |
+| `graphql` | hiçbir şey | GraphQL introspection açık, açık IDE, debug hataları, GET sorgusu — tek sabit probe. Opt-in (`-m graphql`) |
+| `redirect` | hiçbir şey (crawl önerilir) | Yönlendirme parametrelerinde açık yönlendirme; rezerve canary, asla takip etmez. Opt-in (`-m redirect`) |
+| `passive` | hiçbir şey | JWT hijyeni (yalnız decode), eksik SRI, URL'de session id, iç IP/host/yol/stack-trace ifşası, mixed content, robots/security.txt. Opt-in (`-m passive`) |
+| `hostinject` | hiçbir şey | Host-header injection / cache poisoning **sinyalleri** (manuel doğrula); her probe'da cache-buster. Opt-in (`-m hostinject`) |
 
 Bu listeyi ve her modülün güncel açıklamasını görmek için istediğin an
 `recon modules` çalıştır.
@@ -477,9 +660,45 @@ Bu listeyi ve her modülün güncel açıklamasını görmek için istediğin an
 --runner native|docker|auto   # dış araçların nasıl çalıştırılacağı
 --analyst anthropic           # opsiyonel AI yönetici özeti (opt-in, API anahtarı gerekir)
 --github-issues org/repo      # opsiyonel: her yeni bulgu için bir GitHub issue aç
+--discover [--scan-discovered]  # alt alan adı envanteri (+ her canlı host'u tara)
+-m cms,idor                    # CMS/WordPress kontrolleri ve IDOR taraması (opt-in modüller)
+--idor-url https://s/x/1001    # idor modülünün test edeceği id içeren URL
+-m csrf,jsrecon,graphql,redirect,passive,hostinject  # daha fazla opt-in tespit modülü
+--nuclei-profile panels        # nuclei: panel/exposure/tech şablonlarını da çalıştır (web)
+--suppress-file ignore.yml    # kabul edilen riskler (varsayılan: .reconignore.yml)
+--notify-env RECON_WEBHOOK    # YENİ bulguda Slack/Discord/Telegram/webhook
+--resume                      # yarıda kalan taramayı sürdür; biten modüller yeniden çalışmaz
+--dast                        # nuclei fuzzing, yalnızca API şemasının GET işlemlerinde
 ```
 
 Her bayrağın tam detayı: `recon --help`.
+
+Hız sınırı kendini ayarlar: hedef `429`/`503` dönerse tüm modüller yavaşlar
+(`Retry-After`'a da uyar), sonra yeniden `--rate` değerine çıkar. Sonuçlar
+eksik olabileceği için tarama bunu ayrıca bildirir.
+
+`--dast` gerçek saldırı yükleri gönderir; bu yüzden isteğe bağlıdır ve bilerek
+dar tutulmuştur: nuclei, API şemasının yalnızca GET işlemlerini içeren (veri
+değiştiren hiçbir şey fuzz edilmez) ve sunucu adresi senin hedefine yeniden
+yazılmış bir kopyasını alır. Böylece production'ı gösteren bir şema fuzzer'ı
+başka yere yönlendiremez.
+
+**Taramalar arası geçmiş.** `recon trend` (veya `recon trend <çıktı_dizini>`)
+`trend.html` üretir: her host için, her taramadaki bulguların önem derecesine
+göre yığılmış çubuğu ve aynı sayıları yeni/çözülen bilgisiyle bir tabloda
+gösterir. Rapor gibi, dış kaynak yüklemeyen tek bir dosyadır.
+
+**Kendi kontrollerin.** Başka bir paket, bu projeyi fork'lamadan modül ekleyebilir:
+
+```toml
+# kendi paketinin pyproject.toml dosyası
+[project.entry-points."recon_orchestrator.modules"]
+mycheck = "my_package.mycheck"   # NAME, NEEDS_DOCKER, run(target, ctx) içeren bir modül
+```
+
+Eklentiler `recon modules` listesinde görünür, yalnızca adıyla çağrılınca
+çalışır (`-m headers,mycheck`) ve hiçbir zaman yerleşik bir modülün yerine
+geçemez.
 
 ### Mimari (katkıda bulunanlar için)
 
